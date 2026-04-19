@@ -373,6 +373,7 @@ tr:last-child td{border-bottom:none}
         <button class="tab-btn" onclick="gestTab('eventos')" id="gtab-eventos">Eventos</button>
         <button class="tab-btn" onclick="gestTab('historial')" id="gtab-historial">Historial ★</button>
         <button class="tab-btn" onclick="gestTab('credenciales')" id="gtab-credenciales">Credenciales</button>
+        <button class="tab-btn" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1" onclick="gestTab('nuevo')" id="gtab-nuevo">🔄 Nuevo campamento</button>
       </div>
       <div id="gp-clubes"><div id="gestion-clubes"></div></div>
       <div id="gp-evaluadores" style="display:none"><div id="gestion-evaluadores"></div></div>
@@ -380,6 +381,22 @@ tr:last-child td{border-bottom:none}
       <div id="gp-eventos" style="display:none"><div id="gestion-eventos"></div></div>
       <div id="gp-historial" style="display:none"><div id="gestion-historial"></div></div>
       <div id="gp-credenciales" style="display:none"><div id="gestion-creds"></div></div>
+      <div id="gp-nuevo" style="display:none">
+        <div class="card" style="border-color:#F7C1C1">
+          <div style="text-align:center;padding:1rem 0">
+            <div style="font-size:40px;margin-bottom:12px">🔄</div>
+            <h3 style="font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:8px">Iniciar nuevo campamento</h3>
+            <p style="font-size:13px;color:#666;margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto">Esta acción borrará <strong>todos los puntajes, clubes, evaluadores y eventos</strong>. Solo se mantendrán los administradores. Esta acción no se puede deshacer.</p>
+            <div style="margin-bottom:16px;max-width:360px;margin-left:auto;margin-right:auto">
+              <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">Nombre del nuevo campamento</label>
+              <input id="nuevo-nombre" placeholder="ej. Aventureros — Octubre 2026" style="text-align:center">
+            </div>
+            <div id="nuevo-msg" style="display:none;margin-bottom:12px"></div>
+            <button class="btn btn-sm" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1;padding:10px 24px;font-size:13px;font-weight:700" onclick="confirmarNuevoCampamento()">🗑️ Borrar todo e iniciar nuevo campamento</button>
+            <p style="font-size:11px;color:#999;margin-top:12px">Los administradores Jorge García y Manuel Mogollón se mantienen siempre.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -673,7 +690,7 @@ function admTab(t){
 }
 
 function gestTab(t){
-  ['clubes','evaluadores','admins','eventos','historial','credenciales'].forEach(x=>{
+  ['clubes','evaluadores','admins','eventos','historial','credenciales','nuevo'].forEach(x=>{
     document.getElementById('gp-'+x).style.display=x===t?'block':'none';
     document.getElementById('gtab-'+x).classList.toggle('active',x===t);
   });
@@ -683,6 +700,24 @@ function gestTab(t){
   if(t==='eventos')renderGestionEventos();
   if(t==='historial')renderGestionHistorial();
   if(t==='credenciales')renderGestionCreds();
+}
+
+async function confirmarNuevoCampamento(){
+  const nombre=document.getElementById('nuevo-nombre').value.trim();
+  const msg=document.getElementById('nuevo-msg');
+  if(!nombre){msg.className='err';msg.style.display='block';msg.textContent='Escribe el nombre del nuevo campamento.';return;}
+  if(!confirm(`¿Estás seguro? Se borrarán TODOS los puntajes, clubes, evaluadores y eventos. Esta acción no se puede deshacer.`))return;
+  const admins=DB.admins;
+  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1};
+  EVENTS.splice(0,EVENTS.length);
+  ST.scores=[];
+  await saveScoresToFirebase();
+  await saveDBToFirebase();
+  msg.className='notif';msg.style.display='block';
+  msg.textContent=`✓ Nuevo campamento "${nombre}" iniciado. Ya puede agregar clubes, evaluadores y eventos.`;
+  document.getElementById('nuevo-nombre').value='';
+  renderAdmMetrics();renderRankings();populateAdmSelects();
+  setTimeout(()=>{msg.style.display='none';gestTab('clubes');},3000);
 }
 
 function renderAdmin(){
