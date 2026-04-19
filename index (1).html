@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Puntajes</title>
+<meta name="application-name" content="Control de Puntajes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Control de Puntajes">
+<meta name="description" content="Camporee de Conquistadores Valientes 2026 — Control de Puntaje">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1D9E75">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231D9E75'/><polygon points='50,10 61,35 88,38 68,57 74,84 50,70 26,84 32,57 12,38 39,35' fill='white'/></svg>">
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    const sw=`
+self.addEventListener('install',e=>e.waitUntil(
+  caches.open('camporee-v1').then(c=>c.addAll(['/asocentro/']))
+));
+self.addEventListener('fetch',e=>e.respondWith(
+  caches.match(e.request).then(r=>r||fetch(e.request))
+));`;
+    const blob=new Blob([sw],{type:'application/javascript'});
+    const url=URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url).catch(()=>{});
+  });
+}
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  setTimeout(()=>{
+    const banner=document.getElementById('install-banner');
+    if(banner)banner.style.display='flex';
+  },3000);
+});
+window.addEventListener('appinstalled',()=>{
+  const banner=document.getElementById('install-banner');
+  if(banner)banner.style.display='none';
+});
+function installApp(){
+  if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;const banner=document.getElementById('install-banner');if(banner)banner.style.display='none';});}
+}
+function closeBanner(){const banner=document.getElementById('install-banner');if(banner)banner.style.display='none';}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEWe7DNSJXcwcziqZyZphNFD9VkCzdK3s",
+  authDomain: "camporee2026-ff5eb.firebaseapp.com",
+  projectId: "camporee2026-ff5eb",
+  storageBucket: "camporee2026-ff5eb.firebasestorage.app",
+  messagingSenderId: "1090243710108",
+  appId: "1:1090243710108:web:531fe499aad5ce9494b159"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.DB_REF = db;
+window.dbFuncs = { collection, doc, setDoc, getDoc, onSnapshot, deleteDoc };
+window.firebaseReady = true;
+window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+.screen{display:none}.screen.active{display:block}
+.container{max-width:920px;margin:0 auto;padding:1.5rem 1rem}
+.card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.btn{padding:8px 16px;border:1px solid #d0d0c8;border-radius:8px;background:transparent;color:#1a1a1a;cursor:pointer;font-size:13px;transition:background 0.15s;font-family:inherit}
+.btn:hover{background:#f0f0ea}
+.btn-primary{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.btn-primary:hover{background:#0F6E56}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-pdf{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-pdf:hover{background:#0C447C}
+.btn-edit{background:#FAEEDA;color:#633806;border-color:#FAC775}
+.btn-edit:hover{background:#FAC775}
+.btn-rol{padding:14px 20px;border:2px solid #e5e5e0;border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;text-align:center;transition:all 0.2s;flex:1}
+.btn-rol:hover{border-color:#1D9E75;background:#E1F5EE}
+.btn-rol.active{border-color:#1D9E75;background:#E1F5EE}
+.btn-rol-icon{font-size:28px;margin-bottom:6px}
+.btn-rol-label{font-size:13px;font-weight:700;color:#1a1a1a}
+.btn-rol-sub{font-size:11px;color:#666;margin-top:2px}
+.tag{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:600}
+.tag-admin{background:#EEEDFE;color:#3C3489}
+.tag-eval{background:#E1F5EE;color:#085041}
+.tag-kids{background:#E6F1FB;color:#0C447C}
+.tag-junior{background:#FAEEDA;color:#633806}
+.tag-senior{background:#FCEBEB;color:#791F1F}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,117,0.1)}
+input[type=password]{letter-spacing:3px}
+input[type=checkbox]{width:auto;margin-right:6px}
+.score-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:600;font-size:12px}
+.s-gold{background:#FAEEDA;color:#412402}
+.s-silver{background:#EAF3DE;color:#173404}
+.s-bronze{background:#E6F1FB;color:#042C53}
+.s-low{background:#FCEBEB;color:#501313}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px}
+.metric{background:#f5f5f0;border-radius:8px;padding:.85rem;text-align:center}
+.metric-val{font-size:22px;font-weight:700;color:#1a1a1a}
+.metric-lbl{font-size:11px;color:#666;margin-top:3px}
+table{width:100%;font-size:13px;border-collapse:collapse}
+th{color:#666;font-weight:600;text-align:left;padding:8px;border-bottom:1px solid #e5e5e0;font-size:12px}
+td{padding:8px;border-bottom:1px solid #f0f0ea;color:#1a1a1a;font-size:13px;word-break:break-word}
+tr:last-child td{border-bottom:none}
+.tab-row{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab-btn{padding:7px 14px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#666;cursor:pointer;font-size:12px;font-family:inherit;font-weight:500}
+.tab-btn:hover{background:#f5f5f0}
+.tab-btn.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.sec-label{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px;padding-top:12px;border-top:1px solid #f0f0ea}
+.sec-label:first-child{border-top:none;padding-top:0;margin-top:0}
+.cred-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0ea;gap:10px}
+.cred-row:last-child{border-bottom:none}
+.progress-bar{height:7px;background:#e5e5e0;border-radius:4px;margin-top:6px}
+.progress-fill{height:100%;border-radius:4px;background:#1D9E75;transition:width 0.4s}
+.notif{background:#E1F5EE;color:#085041;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:10px;border:1px solid #9FE1CB}
+.err{background:#FCEBEB;color:#791F1F;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:10px;border:1px solid #F7C1C1}
+.warn{background:#FAEEDA;color:#633806;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:10px;border:1px solid #FAC775}
+.event-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;margin-bottom:6px;border:1px solid #f0f0ea}
+.event-row.evaluated{border-color:#9FE1CB;background:#f8fffe}
+.event-row.pending{background:#fafaf8}
+.event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-ok{background:#1D9E75}.dot-pending{background:#d0d0c8}
+.brand-header{text-align:center;padding:1.5rem;background:#fff;border-radius:12px;border:1px solid #e5e5e0}
+.brand-line1{font-size:12px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:1px}
+.brand-line2{font-size:11px;color:#666;margin-top:2px}
+.brand-title{font-size:20px;font-weight:800;color:#1a1a1a;margin:8px 0 2px;line-height:1.2}
+.brand-sub{font-size:13px;color:#666;margin-top:4px}
+.login-wrap{max-width:440px;margin:0 auto;padding-top:2rem}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.av-a{background:#EEEDFE;color:#3C3489}.av-e{background:#E1F5EE;color:#085041}
+.av-k{background:#E6F1FB;color:#0C447C}.av-j{background:#FAEEDA;color:#633806}.av-s{background:#FCEBEB;color:#791F1F}
+.acord-section{margin-bottom:10px;border:1px solid #e5e5e0;border-radius:12px;overflow:hidden}
+.acord-section-btn{width:100%;text-align:left;padding:14px 16px;background:#E1F5EE;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.acord-section-btn:hover{background:#9FE1CB}
+.acord-section-title{font-size:13px;font-weight:700;color:#085041}
+.acord-section-meta{font-size:11px;color:#0F6E56}
+.acord-chevron{font-size:12px;color:#085041;transition:transform 0.2s;flex-shrink:0}
+.acord-section-body{display:none;padding:12px}
+.acord-section-body.open{display:block}
+.acord-event-btn{width:100%;text-align:left;padding:10px 14px;background:#fafaf8;border:1px solid #e5e5e0;border-radius:8px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.acord-event-btn:hover{background:#f0f0ea}
+.acord-event-btn.has-scores{background:#f0fef8;border-color:#9FE1CB}
+.acord-event-body{display:none;background:#fff;border:1px solid #e5e5e0;border-radius:8px;margin-bottom:8px;overflow:hidden}
+.acord-event-body.open{display:block}
+.ev-club-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f8f8f5;gap:8px;flex-wrap:wrap}
+.ev-club-row:last-child{border-bottom:none}
+.ev-club-row.ok{background:#fafffd}
+.ev-club-row.missing{background:#fff8f8;border-left:3px solid #E24B4A}
+.ev-num{width:22px;height:22px;border-radius:50%;background:#1D9E75;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ev-missing-dot{width:22px;height:22px;border-radius:50%;background:#FCEBEB;color:#A32D2D;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;padding:1.5rem;width:90%;max-width:480px;border:1px solid #e5e5e0;max-height:90vh;overflow-y:auto}
+.star-group{margin-bottom:1.5rem}
+.star-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;margin-bottom:8px}
+.star-group-label{font-size:15px;font-weight:700}
+.star-group-count{font-size:12px;margin-top:2px}
+.star-club-item{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border:1px solid #e5e5e0;border-radius:8px;margin-bottom:6px}
+.pos-card{border-radius:10px;padding:12px 16px;text-align:center;flex:1}
+.pos-card-num{font-size:28px;font-weight:800}
+.pos-card-lbl{font-size:11px;margin-top:3px}
+.user-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0ea;gap:8px;flex-wrap:wrap}
+.user-item:last-child{border-bottom:none}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.checkbox-item{display:flex;align-items:center;padding:4px 8px;background:#f5f5f0;border-radius:6px;font-size:12px;cursor:pointer}
+.checkbox-item input{width:14px;height:14px;margin-right:5px;cursor:pointer}
+.sync-indicator{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1D9E75;background:#E1F5EE;padding:3px 10px;border-radius:20px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#1D9E75;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@media(max-width:600px){
+  .grid3{grid-template-columns:1fr!important}
+  .grid2{grid-template-columns:1fr!important}
+  .header{flex-direction:column;align-items:flex-start}
+  .btn-rol{padding:10px 8px}
+  .btn-rol-icon{font-size:20px}
+  .btn-rol-label{font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- BANNER INSTALAR APP -->
+<div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1D9E75;color:#fff;padding:12px 16px;align-items:center;justify-content:space-between;gap:10px;z-index:999;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:10px">
+    <svg width="28" height="28" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="white"/></svg>
+    <div>
+      <p style="font-size:13px;font-weight:700">Instalar Control de Puntajes</p>
+      <p style="font-size:11px;opacity:0.85">Agregar a la pantalla de inicio</p>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="closeBanner()" style="padding:6px 12px;border:1px solid rgba(255,255,255,0.5);border-radius:8px;background:transparent;color:#fff;cursor:pointer;font-size:12px">Ahora no</button>
+    <button onclick="installApp()" style="padding:6px 14px;border:none;border-radius:8px;background:#fff;color:#1D9E75;cursor:pointer;font-size:12px;font-weight:700">Instalar</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="sc-loading" style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px">
+  <div style="width:56px;height:56px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center">
+    <svg width="28" height="28" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#1D9E75"/></svg>
+  </div>
+  <p style="font-size:14px;color:#666">Conectando con la base de datos...</p>
+</div>
+
+<!-- MODAL DISCIPLINA -->
+<div class="modal-overlay" id="modal-disciplina">
+  <div class="modal-box">
+    <p style="font-size:15px;font-weight:700;margin-bottom:4px">🛡️ Registrar falta de disciplina</p>
+    <p id="modal-disc-info" style="font-size:12px;color:#666;margin-bottom:14px"></p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos a descontar <span style="font-weight:400;color:#999">(disponibles: <span id="modal-disc-disponibles"></span>)</span></label>
+      <input type="number" id="modal-disc-puntos" min="1" placeholder="ej. 50">
+      <div class="progress-bar" style="margin-top:6px"><div style="height:100%;border-radius:4px;background:#E24B4A;transition:width 0.3s" id="modal-disc-prog" style="width:0%"></div></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Motivo de la falta <span style="color:#A32D2D;font-weight:700">* obligatorio</span></label>
+      <textarea id="modal-disc-nota" rows="3" style="resize:none;border-color:#FAC775" placeholder="Describa detalladamente la falta cometida..."></textarea>
+    </div>
+    <div id="modal-disc-err" class="err" style="display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeModal('modal-disciplina')">Cancelar</button>
+      <button class="btn btn-sm" style="background:#E24B4A;color:#fff;border-color:#E24B4A" onclick="guardarFalta()">Registrar falta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PUNTAJE -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal-box">
+    <p style="font-size:15px;font-weight:700;margin-bottom:4px">Editar puntaje</p>
+    <p id="modal-edit-info" style="font-size:12px;color:#666;margin-bottom:14px"></p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nuevo puntaje <span id="modal-max-lbl" style="font-weight:400;color:#999"></span></label>
+      <input type="number" id="modal-score" min="0">
+      <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" id="modal-prog" style="width:0%"></div></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Justificación de la edición <span style="color:#A32D2D;font-weight:700">* obligatorio</span></label>
+      <textarea id="modal-note" rows="3" style="resize:none;border-color:#FAC775" placeholder="Explique por qué está editando este puntaje..."></textarea>
+      <p style="font-size:11px;color:#854F0B;margin-top:4px">⚠️ Debe justificar el motivo de la edición para poder guardar.</p>
+    </div>
+    <div id="modal-err" class="err" style="display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeModal('modal-edit')">Cancelar</button>
+      <button class="btn btn-sm btn-primary" onclick="saveEdit()">Guardar cambio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GESTIÓN USUARIO -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal-box">
+    <p id="modal-user-title" style="font-size:15px;font-weight:700;margin-bottom:16px"></p>
+    <div id="modal-user-body"></div>
+    <div id="modal-user-err" class="err" style="display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-sm" onclick="closeModal('modal-user')">Cancelar</button>
+      <button class="btn btn-sm btn-primary" onclick="saveUser()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="sc-login" class="screen">
+  <div class="container">
+    <div class="login-wrap">
+      <div class="brand-header" style="margin-bottom:1.5rem">
+        <div style="width:56px;height:56px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+          <svg width="28" height="28" viewBox="0 0 24 24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#1D9E75"/></svg>
+        </div>
+        <div class="brand-line1">Asociación Centro Occidental</div>
+        <div class="brand-line2">Ministerio Juvenil</div>
+        <div class="brand-title" id="login-campname">Camporee de Conquistadores<br>"Valientes" 2026</div>
+        <div class="brand-sub">Control de Puntaje</div>
+      </div>
+      <div class="card">
+        <p style="font-size:12px;font-weight:600;color:#666;margin-bottom:12px">¿Quién eres?</p>
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <button class="btn-rol" onclick="selectRol('admin')" id="rbtn-admin">
+            <div class="btn-rol-icon">👤</div>
+            <div class="btn-rol-label">Administrador</div>
+            <div class="btn-rol-sub">Acceso total</div>
+          </button>
+          <button class="btn-rol" onclick="selectRol('eval')" id="rbtn-eval">
+            <div class="btn-rol-icon">📋</div>
+            <div class="btn-rol-label">Evaluador</div>
+            <div class="btn-rol-sub">Registrar puntajes</div>
+          </button>
+          <button class="btn-rol" onclick="selectRol('club')" id="rbtn-club">
+            <div class="btn-rol-icon">🏕️</div>
+            <div class="btn-rol-label">Club</div>
+            <div class="btn-rol-sub">Ver mis puntajes</div>
+          </button>
+        </div>
+        <div id="login-form" style="display:none">
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:5px" id="login-select-label">Usuario</label>
+            <select id="login-user"></select>
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:5px">Contraseña</label>
+            <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <div id="login-err" class="err" style="display:none"></div>
+          <button class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:600" onclick="doLogin()">Ingresar</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;text-align:center;margin-top:10px">¿Olvidaste tu clave? Contacta al administrador</p>
+      <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid #e5e5e0">
+        <p style="font-size:10px;color:#bbb">Desarrollado por <span style="color:#999;font-weight:600">Manuel Mogollón</span></p>
+        <p style="font-size:10px;color:#bbb;margin-top:2px">Ministerio Juvenil · Asociación Centro Occidental · 2026</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="sc-admin" class="screen">
+  <div class="container">
+    <div class="brand-header" style="margin-bottom:1.25rem;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;text-align:left">
+      <div>
+        <div class="brand-line1">Asociación Centro Occidental · Ministerio Juvenil</div>
+        <div class="brand-title" style="font-size:15px;margin:4px 0 0" id="adm-campname">Camporee "Valientes" 2026 — Control de Puntaje</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="sync-indicator"><span class="sync-dot"></span>En vivo</span>
+        <span class="tag tag-admin">Admin</span>
+        <span id="adm-name" style="font-size:13px;font-weight:600"></span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="btn btn-sm btn-pdf" onclick="generarPDF()">Reporte PDF</button>
+      <button class="btn btn-sm" onclick="logout()">Salir</button>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="admTab('ranking')" id="atab-ranking">Ranking</button>
+      <button class="tab-btn" onclick="admTab('eventos')" id="atab-eventos">Por evento</button>
+      <button class="tab-btn" onclick="admTab('estrellas')" id="atab-estrellas">Por estrellas</button>
+      <button class="tab-btn" onclick="admTab('evaluar')" id="atab-evaluar">Evaluar</button>
+      <button class="tab-btn" onclick="admTab('detalle')" id="atab-detalle">Por club</button>
+      <button class="tab-btn" onclick="admTab('historial')" id="atab-historial">Historial</button>
+      <button class="tab-btn" onclick="admTab('gestion')" id="atab-gestion">⚙️ Gestión</button>
+    </div>
+    <div id="ap-ranking">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1rem" class="grid3" id="adm-metrics"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px" class="grid3">
+        <div class="card" style="margin-bottom:0"><p style="font-size:12px;font-weight:700;color:#0C447C;margin-bottom:10px">🏕 Kids</p><table id="rank-kids"></table></div>
+        <div class="card" style="margin-bottom:0"><p style="font-size:12px;font-weight:700;color:#633806;margin-bottom:10px">⛺ Junior</p><table id="rank-junior"></table></div>
+        <div class="card" style="margin-bottom:0"><p style="font-size:12px;font-weight:700;color:#791F1F;margin-bottom:10px">🏔 Senior</p><table id="rank-senior"></table></div>
+      </div>
+    </div>
+    <div id="ap-eventos" style="display:none"><div id="eventos-acordeon"></div></div>
+    <div id="ap-estrellas" style="display:none"><div id="estrellas-grupos"></div></div>
+    <div id="ap-evaluar" style="display:none">
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Registrar puntaje</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" class="grid2">
+          <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club</label><select id="adm-club" onchange="admUpdateEvent()"></select></div>
+          <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Evento</label><select id="adm-event" onchange="admUpdateMax()"></select></div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntaje <span id="adm-max-lbl" style="font-weight:400;color:#999"></span></label>
+          <input id="adm-score" type="number" min="0" placeholder="0" oninput="admProgress()">
+          <div class="progress-bar"><div class="progress-fill" id="adm-prog" style="width:0%"></div></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Observación (opcional)</label>
+          <textarea id="adm-note" rows="2" style="resize:none"></textarea>
+        </div>
+        <div id="adm-msg" style="display:none"></div>
+        <button class="btn btn-primary btn-sm" onclick="admSubmit()">Guardar puntaje</button>
+      </div>
+    </div>
+    <div id="ap-detalle" style="display:none"><div id="clubs-detail"></div></div>
+    <div id="ap-historial" style="display:none">
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">Historial completo</h3>
+        <div style="overflow-x:auto"><table id="hist-table" style="min-width:480px"></table></div>
+      </div>
+    </div>
+    <div id="ap-gestion" style="display:none">
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="gestTab('clubes')" id="gtab-clubes">Clubes</button>
+        <button class="tab-btn" onclick="gestTab('evaluadores')" id="gtab-evaluadores">Evaluadores</button>
+        <button class="tab-btn" onclick="gestTab('admins')" id="gtab-admins">Administradores</button>
+        <button class="tab-btn" onclick="gestTab('eventos')" id="gtab-eventos">Eventos</button>
+        <button class="tab-btn" onclick="gestTab('divisiones')" id="gtab-divisiones">Divisiones</button>
+        <button class="tab-btn" onclick="gestTab('disciplina')" id="gtab-disciplina">🛡️ Disciplina</button>
+        <button class="tab-btn" onclick="gestTab('historial')" id="gtab-historial">Historial ★</button>
+        <button class="tab-btn" onclick="gestTab('credenciales')" id="gtab-credenciales">Credenciales</button>
+        <button class="tab-btn" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1" onclick="gestTab('nuevo')" id="gtab-nuevo">🔄 Nuevo campamento</button>
+      </div>
+      <div id="gp-clubes"><div id="gestion-clubes"></div></div>
+      <div id="gp-evaluadores" style="display:none"><div id="gestion-evaluadores"></div></div>
+      <div id="gp-admins" style="display:none"><div id="gestion-admins"></div></div>
+      <div id="gp-eventos" style="display:none"><div id="gestion-eventos"></div></div>
+      <div id="gp-divisiones" style="display:none"><div id="gestion-divisiones"></div></div>
+      <div id="gp-disciplina" style="display:none"><div id="gestion-disciplina"></div></div>
+      <div id="gp-historial" style="display:none"><div id="gestion-historial"></div></div>
+      <div id="gp-credenciales" style="display:none"><div id="gestion-creds"></div></div>
+      <div id="gp-nuevo" style="display:none">
+        <div class="card" style="border-color:#F7C1C1">
+          <div style="text-align:center;padding:1rem 0">
+            <div style="font-size:40px;margin-bottom:12px">🔄</div>
+            <h3 style="font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:8px">Iniciar nuevo campamento</h3>
+            <p style="font-size:13px;color:#666;margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto">Esta acción borrará <strong>todos los puntajes, clubes, evaluadores y eventos</strong>. Solo se mantendrán los administradores. Esta acción no se puede deshacer.</p>
+            <div style="margin-bottom:16px;max-width:360px;margin-left:auto;margin-right:auto">
+              <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">Nombre del nuevo campamento</label>
+              <input id="nuevo-nombre" placeholder="ej. Aventureros — Octubre 2026" style="text-align:center">
+            </div>
+            <div id="nuevo-msg" style="display:none;margin-bottom:12px"></div>
+            <button class="btn btn-sm" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1;padding:10px 24px;font-size:13px;font-weight:700" onclick="confirmarNuevoCampamento()">🗑️ Borrar todo e iniciar nuevo campamento</button>
+            <p style="font-size:11px;color:#999;margin-top:12px">Los administradores Jorge García y Manuel Mogollón se mantienen siempre.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVALUADOR -->
+<div id="sc-eval" class="screen">
+  <div class="container">
+    <div class="header">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px" id="eval-campname">Camporee Valientes 2026</div>
+        <span class="tag tag-eval">Evaluador</span>
+        <h2 id="ev-name" style="font-size:18px;font-weight:700;margin-top:4px"></h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="sync-indicator"><span class="sync-dot"></span>En vivo</span>
+        <button class="btn btn-sm" onclick="logout()">Salir</button>
+      </div>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="evalTab('registrar')" id="etab-registrar">Registrar</button>
+      <button class="tab-btn" onclick="evalTab('disciplina')" id="etab-disciplina">🛡️ Disciplina</button>
+      <button class="tab-btn" onclick="evalTab('misevals')" id="etab-misevals">Mis evaluaciones</button>
+    </div>
+    <div id="ep-registrar">
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">Mis eventos asignados</h3>
+        <div id="ev-events-info" style="margin-bottom:16px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" class="grid2">
+          <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club</label><select id="ev-club"></select></div>
+          <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Evento</label><select id="ev-event" onchange="evUpdateMax()"></select></div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntaje <span id="ev-max-lbl" style="font-weight:400;color:#999"></span></label>
+          <input id="ev-score" type="number" min="0" placeholder="0" oninput="evProgress()">
+          <div class="progress-bar"><div class="progress-fill" id="ev-prog" style="width:0%"></div></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Observación (opcional)</label>
+          <textarea id="ev-note" rows="2" style="resize:none"></textarea>
+        </div>
+        <div id="ev-msg" style="display:none"></div>
+        <button class="btn btn-primary btn-sm" onclick="evSubmit()">Guardar puntaje</button>
+      </div>
+    </div>
+    <div id="ep-misevals" style="display:none">
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Mis evaluaciones registradas</h3>
+        <table id="ev-recent"></table>
+      </div>
+    </div>
+    <div id="ep-disciplina" style="display:none">
+      <div id="ep-disc-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CLUB -->
+<div id="sc-club" class="screen">
+  <div class="container">
+    <div class="header">
+      <div id="club-header-info"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="sync-indicator"><span class="sync-dot"></span>En vivo</span>
+        <button class="btn btn-sm" onclick="logout()">Salir</button>
+      </div>
+    </div>
+    <div id="club-pos-cards" style="margin-bottom:1rem"></div>
+    <div id="club-star-banner" style="margin-bottom:1rem"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1rem" class="grid3" id="club-metrics"></div>
+    <div id="club-events-by-section"></div>
+  </div>
+</div>
+
+<script>
+let EVENTS=[
+  {id:1,div:1,name:'Inscripción a tiempo',max:150,evalIds:[101]},
+  {id:2,div:1,name:'Carpeta de registro',max:50,evalIds:[101]},
+  {id:3,div:1,name:'Carpeta de documentos',max:300,evalIds:[101]},
+  {id:4,div:2,name:'Semana de evangelismo',max:200,evalIds:[102]},
+  {id:5,div:2,name:'Grupos pequeños',max:150,evalIds:[102]},
+  {id:6,div:2,name:'Impacto a la comunidad',max:150,evalIds:[102]},
+  {id:7,div:2,name:'Participación en feria',max:300,evalIds:[102]},
+  {id:8,div:2,name:'Especialidades',max:300,evalIds:[102]},
+  {id:9,div:3,name:'Matutina',max:500,evalIds:[103]},
+  {id:10,div:3,name:'Conexión bíblica',max:500,evalIds:[104]},
+  {id:11,div:3,name:'Doctrina',max:500,evalIds:[105]},
+  {id:12,div:3,name:'Cazando la lectura',max:500,evalIds:[106]},
+  {id:13,div:4,name:'Balonmano',max:300,evalIds:[107]},
+  {id:14,div:4,name:'Prueba de desafíos',max:300,evalIds:[108]},
+  {id:15,div:4,name:'Carrera de relevo',max:300,evalIds:[110]},
+  {id:16,div:4,name:'Prueba de nudos',max:300,evalIds:[109]},
+  {id:17,div:5,name:'Marchas (Kids)',max:400,evalIds:[111],cat:'kids'},
+  {id:18,div:5,name:'Marchas (Junior)',max:400,evalIds:[112],cat:'junior'},
+  {id:19,div:5,name:'Marchas (Senior)',max:400,evalIds:[113],cat:'senior'},
+  {id:20,div:5,name:'Insp. uniforme (Kids)',max:900,evalIds:[114],cat:'kids'},
+  {id:21,div:5,name:'Insp. uniforme (Junior)',max:900,evalIds:[115],cat:'junior'},
+  {id:22,div:5,name:'Insp. uniforme (Senior)',max:900,evalIds:[116],cat:'senior'},
+  {id:23,div:5,name:'Insp. camping (Kids)',max:150,evalIds:[117],cat:'kids'},
+  {id:24,div:5,name:'Insp. camping (Junior)',max:150,evalIds:[118],cat:'junior'},
+  {id:25,div:5,name:'Insp. camping (Senior)',max:150,evalIds:[119],cat:'senior'},
+  {id:26,div:5,name:'Arte de acampar (Kids)',max:400,evalIds:[114],cat:'kids'},
+  {id:27,div:5,name:'Arte de acampar (Junior)',max:400,evalIds:[120],cat:'junior'},
+  {id:28,div:5,name:'Arte de acampar (Senior)',max:400,evalIds:[109],cat:'senior'},
+];
+let DIVNAMES={1:'División 1 — Registro',2:'División 2 — Pre-Camporee',3:'División 3 — Bíblicos',4:'División 4 — Deportivos',5:'División 5 — Técnicos'};
+let DIVKEYS=[1,2,3,4,5];
+
+function syncDivisions(){
+  DIVKEYS=Object.keys(DB.divisiones||{}).map(Number).sort((a,b)=>a-b);
+  DIVNAMES={};
+  (DB.divisiones?Object.entries(DB.divisiones):[]).forEach(([k,v])=>DIVNAMES[k]=v);
+  if(!DIVKEYS.length){DIVKEYS=[1,2,3,4,5];DIVNAMES={1:'División 1 — Registro',2:'División 2 — Pre-Camporee',3:'División 3 — Bíblicos',4:'División 4 — Deportivos',5:'División 5 — Técnicos'};}
+}
+
+function getMaxPts(){
+  const evMax=EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);
+  return evMax+(DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0);
+}
+
+let ST={scores:[],faltas:[],current:null,editIdx:null,editUserIdx:null,editUserType:null,unsubscribe:null};
+let DB={
+  clubs:[
+    {id:10,name:'Neolaia',cat:'kids',pass:'neo#4821',historial:{}},
+    {id:11,name:'Centinela',cat:'kids',pass:'cen#7053',historial:{}},
+    {id:12,name:'Fuerza de Dios',cat:'kids',pass:'fue#2694',historial:{}},
+    {id:13,name:'Valdenses',cat:'junior',pass:'val#3817',historial:{}},
+    {id:14,name:'Admiel',cat:'junior',pass:'adm#5062',historial:{}},
+    {id:15,name:'Josué',cat:'junior',pass:'jos#9143',historial:{}},
+    {id:16,name:'Gedeón',cat:'senior',pass:'ged#7730',historial:{}},
+    {id:17,name:'G-12',cat:'senior',pass:'g12#4455',historial:{}},
+    {id:18,name:'Luther Warren',cat:'senior',pass:'lut#8829',historial:{}},
+  ],
+  evaluadores:[
+    {id:101,name:'Hilda Cuadrados',pass:'hil#3847',evalIds:[1,2,3]},
+    {id:102,name:'Jorge García (Pre-C)',pass:'jgp#5291',evalIds:[4,5,6,7,8]},
+    {id:103,name:'Manuel Polo',pass:'mpo#7463',evalIds:[9]},
+    {id:104,name:'Eduardo Anaya',pass:'ean#2058',evalIds:[10]},
+    {id:105,name:'Walner Palacio',pass:'wal#6134',evalIds:[11]},
+    {id:106,name:'Javier Gaviria',pass:'jga#9027',evalIds:[12]},
+    {id:107,name:'Mario Montes',pass:'mom#4815',evalIds:[13]},
+    {id:108,name:'Ismael Hernández',pass:'ish#3362',evalIds:[14]},
+    {id:109,name:'Manuel Mogollón (Eval)',pass:'mme#7741',evalIds:[16,28]},
+    {id:110,name:'Juan Marmolejo',pass:'jmr#5509',evalIds:[15]},
+    {id:111,name:'Javier Gaviria (Kids)',pass:'jgk#8830',evalIds:[17]},
+    {id:112,name:'Erick Berrocal',pass:'erb#2247',evalIds:[18]},
+    {id:113,name:'Manuel Polo (Sr)',pass:'mps#6693',evalIds:[19]},
+    {id:114,name:'Richar Rincón',pass:'rri#4401',evalIds:[20,26]},
+    {id:115,name:'Eduardo Playonero',pass:'epl#7758',evalIds:[21]},
+    {id:116,name:'Isaí Bernal',pass:'isb#3325',evalIds:[22]},
+    {id:117,name:'Daniel Guiza',pass:'dgu#9914',evalIds:[23]},
+    {id:118,name:'Elber Márquez',pass:'elm#6672',evalIds:[24]},
+    {id:119,name:'Fredy Pinzón',pass:'fpi#1183',evalIds:[25]},
+    {id:120,name:'Mauro Usaquén',pass:'mus#5547',evalIds:[27]},
+  ],
+  admins:[
+    {id:1,name:'Jorge García',pass:'camporee2026jorge'},
+    {id:2,name:'Manuel Mogollón',pass:'camporee2026manuel'},
+  ],
+  nextId:200,
+  nextEventId:29,
+  campName:'Camporee de Conquistadores "Valientes" 2026',
+  disciplina:{puntosIniciales:1000,evalIds:[]},
+  divisiones:{
+    1:'División 1 — Registro',
+    2:'División 2 — Pre-Camporee',
+    3:'División 3 — Bíblicos',
+    4:'División 4 — Deportivos',
+    5:'División 5 — Técnicos'
+  },
+  nextDivId:6
+};
+
+function getDisciplinaTotal(clubId){
+  const faltas=ST.faltas?ST.faltas.filter(f=>f.clubId===clubId):[];
+  const restado=faltas.reduce((a,b)=>a+b.puntos,0);
+  return(DB.disciplina?DB.disciplina.puntosIniciales||0:0)-restado;
+}
+
+async function saveFaltasToFirebase(){
+  const{doc,setDoc}=window.dbFuncs;const db=window.DB_REF;
+  try{await setDoc(doc(db,'camporee','faltas'),{data:ST.faltas,updatedAt:Date.now()});}catch(e){console.error(e);}
+}
+
+function updateCampName(){
+  const name=DB.campName||'Control de Puntaje';
+  const ids=['login-campname','adm-campname','eval-campname','club-campname'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=name;});
+}
+
+function initials(name){return name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();}
+function getStarInfo(pct){
+  if(pct>=91)return{n:6,label:'6 Estrellas',stars:'★★★★★★',color:'#3C3489',hdr:'#F0EFFE'};
+  if(pct>=77)return{n:5,label:'5 Estrellas',stars:'★★★★★',color:'#633806',hdr:'#FEF6EA'};
+  if(pct>=63)return{n:4,label:'4 Estrellas',stars:'★★★★',color:'#085041',hdr:'#EBF7F2'};
+  if(pct>=49)return{n:3,label:'3 Estrellas',stars:'★★★',color:'#0C447C',hdr:'#EEF6FD'};
+  return{n:2,label:'2 Estrellas',stars:'★★',color:'#666',hdr:'#f5f5f0'};
+}
+function posMedal(n){return n===1?'🥇':n===2?'🥈':n===3?'🥉':n+'°';}
+function getPosInfo(clubId){
+  const club=DB.clubs.find(c=>c.id===clubId);
+  const allRanked=[...DB.clubs].map(c=>({id:c.id,total:clubTotalConDisciplina(c.id)})).sort((a,b)=>b.total-a.total);
+  const catRanked=DB.clubs.filter(c=>c.cat===club.cat).map(c=>({id:c.id,total:clubTotalConDisciplina(c.id)})).sort((a,b)=>b.total-a.total);
+  return{posGeneral:allRanked.findIndex(c=>c.id===clubId)+1,posCat:catRanked.findIndex(c=>c.id===clubId)+1,totalClubs:DB.clubs.length,totalCat:catRanked.length};
+}
+function posCardColor(n){
+  if(n===1)return{bg:'#FAEEDA',color:'#412402'};
+  if(n===2)return{bg:'#f5f5f0',color:'#444'};
+  if(n===3)return{bg:'#E6F1FB',color:'#042C53'};
+  return{bg:'#f5f5f0',color:'#666'};
+}
+function scoreBadge(s,m){const p=s/m;const c=p>=0.9?'s-gold':p>=0.7?'s-silver':p>=0.5?'s-bronze':'s-low';return`<span class="score-badge ${c}">${s}/${m}</span>`;}
+function clubTotal(cid){return ST.scores.filter(s=>s.clubId===cid).reduce((a,b)=>a+b.score,0);}
+function clubTotalConDisciplina(cid){return clubTotal(cid)+getDisciplinaTotal(cid);}
+function avCls(cat){return cat==='kids'?'av-k':cat==='junior'?'av-j':'av-s';}
+function catTag(cat){if(cat==='kids')return'<span class="tag tag-kids">Kids</span>';if(cat==='junior')return'<span class="tag tag-junior">Junior</span>';return'<span class="tag tag-senior">Senior</span>';}
+function catName(cat){return cat==='kids'?'Kids':cat==='junior'?'Junior':'Senior';}
+
+async function saveScoresToFirebase(){
+  const{doc,setDoc}=window.dbFuncs;
+  const db=window.DB_REF;
+  try{await setDoc(doc(db,'camporee','scores'),{data:ST.scores,updatedAt:Date.now()});}catch(e){console.error(e);}
+}
+
+async function saveDBToFirebase(){
+  const{doc,setDoc}=window.dbFuncs;
+  const db=window.DB_REF;
+  try{
+    await setDoc(doc(db,'camporee','db'),{data:DB,updatedAt:Date.now()});
+    await setDoc(doc(db,'camporee','events'),{data:EVENTS,updatedAt:Date.now()});
+  }catch(e){console.error(e);}
+}
+
+function startRealtimeSync(){
+  const{doc,onSnapshot}=window.dbFuncs;
+  const db=window.DB_REF;
+  if(ST.unsubscribe)ST.unsubscribe();
+  const unsubScores=onSnapshot(doc(db,'camporee','scores'),(snap)=>{
+    if(snap.exists()){ST.scores=snap.data().data||[];refreshCurrentView();}
+  });
+  const unsubFaltas=onSnapshot(doc(db,'camporee','faltas'),(snap)=>{
+    if(snap.exists()){ST.faltas=snap.data().data||[];refreshCurrentView();}
+  });
+  ST.unsubscribe=()=>{unsubScores();unsubFaltas();};
+}
+
+function refreshCurrentView(){
+  if(!ST.current)return;
+  if(ST.current.role==='admin'){
+    renderRankings();renderAdmMetrics();
+    const activeTab=document.querySelector('.tab-btn.active');
+    if(activeTab){
+      const id=activeTab.id.replace('atab-','');
+      if(id==='eventos')renderAcordeon();
+      if(id==='estrellas')renderEstrellasGrupos();
+      if(id==='detalle')renderClubsDetail();
+      if(id==='historial')renderHistorial();
+    }
+  } else if(ST.current.role==='eval'){
+    renderEvRecent();
+  } else if(ST.current.role==='club'){
+    renderClub();
+  }
+}
+
+function showScreen(id){
+  document.getElementById('sc-loading').style.display='none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function selectRol(rol){
+  ST.selectedRol=rol;
+  ['admin','eval','club'].forEach(r=>document.getElementById('rbtn-'+r).classList.toggle('active',r===rol));
+  const sel=document.getElementById('login-user');
+  sel.innerHTML='<option value="">Seleccionar...</option>';
+  if(rol==='admin'){
+    DB.admins.forEach(u=>{const o=document.createElement('option');o.value='a_'+u.id;o.textContent=u.name;sel.appendChild(o);});
+    document.getElementById('login-select-label').textContent='Administrador';
+  } else if(rol==='eval'){
+    DB.evaluadores.forEach(u=>{const o=document.createElement('option');o.value='e_'+u.id;o.textContent=u.name;sel.appendChild(o);});
+    document.getElementById('login-select-label').textContent='Evaluador';
+  } else {
+    ['kids','junior','senior'].forEach(cat=>{
+      const og=document.createElement('optgroup');og.label=catName(cat);
+      DB.clubs.filter(c=>c.cat===cat).forEach(u=>{const o=document.createElement('option');o.value='c_'+u.id;o.textContent=u.name;og.appendChild(o);});
+      sel.appendChild(og);
+    });
+    document.getElementById('login-select-label').textContent='Club';
+  }
+  document.getElementById('login-form').style.display='block';
+}
+
+function doLogin(){
+  const raw=document.getElementById('login-user').value;
+  const pass=document.getElementById('login-pass').value.trim();
+  const err=document.getElementById('login-err');
+  if(!raw){err.style.display='block';err.textContent='Selecciona un usuario.';return;}
+  const[type,id]=raw.split('_');const uid=parseInt(id);
+  let user=null;let role='';
+  if(type==='a'){user=DB.admins.find(u=>u.id===uid);role='admin';}
+  else if(type==='e'){user=DB.evaluadores.find(u=>u.id===uid);role='eval';}
+  else{user=DB.clubs.find(u=>u.id===uid);role='club';}
+  if(!user){err.style.display='block';err.textContent='Usuario no encontrado.';return;}
+  if(user.pass!==pass){err.style.display='block';err.textContent='Contraseña incorrecta.';return;}
+  err.style.display='none';document.getElementById('login-pass').value='';
+  ST.current={...user,role,clubId:role==='club'?user.id:null};
+  startRealtimeSync();
+  if(role==='admin'){renderAdmin();showScreen('sc-admin');}
+  else if(role==='eval'){renderEval();showScreen('sc-eval');}
+  else{renderClub();showScreen('sc-club');}
+}
+
+function logout(){
+  if(ST.unsubscribe){ST.unsubscribe();ST.unsubscribe=null;}
+  ST.current=null;ST.selectedRol=null;
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('login-pass').value='';
+  ['admin','eval','club'].forEach(r=>document.getElementById('rbtn-'+r).classList.remove('active'));
+  showScreen('sc-login');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');ST.editIdx=null;ST.editUserIdx=null;}
+
+function admTab(t){
+  ['ranking','eventos','estrellas','evaluar','detalle','historial','gestion'].forEach(x=>{
+    document.getElementById('ap-'+x).style.display=x===t?'block':'none';
+    document.getElementById('atab-'+x).classList.toggle('active',x===t);
+  });
+  if(t==='detalle')renderClubsDetail();
+  if(t==='historial')renderHistorial();
+  if(t==='estrellas')renderEstrellasGrupos();
+  if(t==='eventos')renderAcordeon();
+  if(t==='gestion')gestTab('clubes');
+}
+
+function gestTab(t){
+  ['clubes','evaluadores','admins','eventos','divisiones','disciplina','historial','credenciales','nuevo'].forEach(x=>{
+    document.getElementById('gp-'+x).style.display=x===t?'block':'none';
+    document.getElementById('gtab-'+x).classList.toggle('active',x===t);
+  });
+  if(t==='clubes')renderGestionClubes();
+  if(t==='evaluadores')renderGestionEvaluadores();
+  if(t==='admins')renderGestionAdmins();
+  if(t==='eventos')renderGestionEventos();
+  if(t==='divisiones')renderGestionDivisiones();
+  if(t==='disciplina')renderGestionDisciplina();
+  if(t==='historial')renderGestionHistorial();
+  if(t==='credenciales')renderGestionCreds();
+}
+
+async function confirmarNuevoCampamento(){
+  const nombre=document.getElementById('nuevo-nombre').value.trim();
+  const msg=document.getElementById('nuevo-msg');
+  if(!nombre){msg.className='err';msg.style.display='block';msg.textContent='Escribe el nombre del nuevo campamento.';return;}
+  if(!confirm(`¿Estás seguro? Se borrarán TODOS los puntajes, clubes, evaluadores y eventos. Esta acción no se puede deshacer.`))return;
+  const admins=DB.admins;
+  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1,campName:nombre,disciplina:{puntosIniciales:1000,evalIds:[]},divisiones:{},nextDivId:1};
+  EVENTS.splice(0,EVENTS.length);
+  ST.scores=[];
+  ST.faltas=[];
+  await saveScoresToFirebase();
+  await saveFaltasToFirebase();
+  await saveDBToFirebase();
+  updateCampName();
+  msg.className='notif';msg.style.display='block';
+  msg.textContent=`✓ "${nombre}" iniciado. Ya puede agregar clubes, evaluadores y eventos.`;
+  document.getElementById('nuevo-nombre').value='';
+  renderAdmMetrics();renderRankings();populateAdmSelects();
+  setTimeout(()=>{msg.style.display='none';gestTab('clubes');},3000);
+}
+
+function renderAdmin(){
+  document.getElementById('adm-name').textContent=ST.current.name;
+  admTab('ranking');renderAdmMetrics();renderRankings();populateAdmSelects();
+}
+
+function renderAdmMetrics(){
+  const hoy=ST.scores.filter(s=>{const d=new Date(s.ts);const n=new Date();return d.toDateString()===n.toDateString();}).length;
+  document.getElementById('adm-metrics').innerHTML=`
+    <div class="metric"><div class="metric-val">${DB.clubs.length}</div><div class="metric-lbl">Clubes</div></div>
+    <div class="metric"><div class="metric-val">${ST.scores.length}</div><div class="metric-lbl">Puntajes registrados</div></div>
+    <div class="metric"><div class="metric-val">${hoy}</div><div class="metric-lbl">Registrados hoy</div></div>`;
+}
+
+function renderRankings(){
+  ['kids','junior','senior'].forEach(cat=>{
+    const ranked=DB.clubs.filter(c=>c.cat===cat).map(c=>{
+      const total=clubTotalConDisciplina(c.id);
+      const pct=Math.round(total/getMaxPts()*100);
+      return{...c,total,pct,star:getStarInfo(pct)};
+    }).sort((a,b)=>b.total-a.total);
+    let html=`<thead><tr><th style="width:28px">#</th><th>Club</th><th>Pts</th><th>Nivel</th></tr></thead><tbody>`;
+    ranked.forEach((c,i)=>{html+=`<tr><td style="font-size:16px">${posMedal(i+1)}</td><td style="font-size:12px">${c.name}</td><td>${scoreBadge(c.total,getMaxPts())}</td><td style="font-size:13px;color:${c.star.color}">${c.star.stars}</td></tr>`;});
+    document.getElementById('rank-'+cat).innerHTML=html+'</tbody>';
+  });
+}
+
+function toggleSection(id){const body=document.getElementById('sb-'+id);const chev=document.getElementById('schev-'+id);const open=body.classList.toggle('open');chev.style.transform=open?'rotate(90deg)':'rotate(0deg)';}
+function toggleEvent(id){document.getElementById('eb-'+id).classList.toggle('open');}
+
+function renderAcordeon(){
+  const el=document.getElementById('eventos-acordeon');el.innerHTML='';
+  DIVKEYS.forEach(div=>{
+    const evtsDiv=EVENTS.filter(e=>e.div===div);
+    const evaluatedEv=evtsDiv.filter(ev=>ST.scores.some(s=>s.eventId===ev.id)).length;
+    let evBtns='';
+    evtsDiv.forEach(ev=>{
+      const applicableClubs=DB.clubs.filter(c=>!ev.cat||ev.cat===c.cat);
+      const evaluatedScores=ST.scores.filter(s=>s.eventId===ev.id);
+      const pendingClubs=applicableClubs.filter(c=>!evaluatedScores.map(s=>s.clubId).includes(c.id));
+      let clubRows='';let num=1;
+      evaluatedScores.forEach(sc=>{
+        const club=DB.clubs.find(c=>c.id===sc.clubId);if(!club)return;
+        const idx=ST.scores.indexOf(sc);
+        clubRows+=`<div class="ev-club-row ok">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="ev-num">${num++}</div>
+            <div class="avatar ${avCls(club.cat)}" style="width:28px;height:28px;font-size:10px">${initials(club.name)}</div>
+            <div><p style="font-size:13px;font-weight:600">${club.name}</p>${catTag(club.cat)}${sc.note?`<p style="font-size:11px;color:#666;margin-top:2px">${sc.note}</p>`:''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            ${scoreBadge(sc.score,ev.max)}<button class="btn btn-edit btn-sm" onclick="openEdit(${idx})">✏️ Editar</button>
+          </div>
+        </div>`;
+      });
+      pendingClubs.forEach(club=>{
+        clubRows+=`<div class="ev-club-row missing">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="ev-missing-dot">!</div>
+            <div class="avatar ${avCls(club.cat)}" style="width:28px;height:28px;font-size:10px">${initials(club.name)}</div>
+            <p style="font-size:13px;color:#A32D2D;font-weight:500">${club.name} ${catTag(club.cat)}</p>
+          </div>
+          <span style="font-size:11px;color:#A32D2D;font-weight:600;background:#FCEBEB;padding:3px 8px;border-radius:20px">Pendiente</span>
+        </div>`;
+      });
+      evBtns+=`<button class="acord-event-btn ${evaluatedScores.length>0?'has-scores':''}" onclick="toggleEvent('${div}-${ev.id}')">
+        <div><p class="acord-event-title">${ev.name}</p><p class="acord-event-meta">Máx ${ev.max} pts · ${evaluatedScores.length} evaluados · ${pendingClubs.length} pendientes${ev.cat?' · Solo '+ev.cat:''}</p></div>
+        <span style="font-size:12px;color:#666">${evaluatedScores.length>0?'▼':'▶'}</span>
+      </button>
+      <div class="acord-event-body" id="eb-${div}-${ev.id}">${clubRows}</div>`;
+    });
+    el.innerHTML+=`<div class="acord-section">
+      <button class="acord-section-btn" onclick="toggleSection(${div})">
+        <div><p class="acord-section-title">${DIVNAMES[div]}</p><p class="acord-section-meta">${evaluatedEv} de ${evtsDiv.length} eventos con puntajes</p></div>
+        <span class="acord-chevron" id="schev-${div}">▶</span>
+      </button>
+      <div class="acord-section-body" id="sb-${div}"><div style="padding:4px 0">${evBtns}</div></div>
+    </div>`;
+  });
+}
+
+function renderEstrellasGrupos(){
+  const el=document.getElementById('estrellas-grupos');el.innerHTML='';
+  const levels=[
+    {n:6,label:'6 Estrellas',range:'91%–100%',stars:'★★★★★★',color:'#3C3489',hdr:'#F0EFFE'},
+    {n:5,label:'5 Estrellas',range:'77%–90%',stars:'★★★★★',color:'#633806',hdr:'#FEF6EA'},
+    {n:4,label:'4 Estrellas',range:'63%–76%',stars:'★★★★',color:'#085041',hdr:'#EBF7F2'},
+    {n:3,label:'3 Estrellas',range:'49%–62%',stars:'★★★',color:'#0C447C',hdr:'#EEF6FD'},
+    {n:2,label:'2 Estrellas',range:'0%–48%',stars:'★★',color:'#666',hdr:'#f5f5f0'},
+  ];
+  let any=false;
+  levels.forEach(lv=>{
+    const clubsInLevel=DB.clubs.map(c=>{const total=clubTotal(c.id);const pct=Math.round(total/getMaxPts()*100);const pos=getPosInfo(c.id);return{...c,total,pct,star:getStarInfo(pct),pos};}).filter(c=>c.star.n===lv.n).sort((a,b)=>b.total-a.total);
+    if(!clubsInLevel.length)return;any=true;
+    let items='';
+    clubsInLevel.forEach((c,i)=>{
+      const nextPct=lv.n<6?[49,63,77,91][lv.n-2]:null;
+      const ptsToNext=nextPct?Math.ceil((nextPct/100)*getMaxPts())-c.total:0;
+      items+=`<div class="star-club-item">
+        <span style="font-size:15px;font-weight:700;color:${lv.color};width:24px">${i+1}.</span>
+        <div class="avatar ${avCls(c.cat)}">${initials(c.name)}</div>
+        <div style="flex:1">${catTag(c.cat)}<p style="font-size:14px;font-weight:700">${c.name}</p>
+        <p style="font-size:12px;color:#666;margin-top:3px">${c.total} pts · ${c.pct}% · ${posMedal(c.pos.posCat)} en ${catName(c.cat)} · ${posMedal(c.pos.posGeneral)} general${ptsToNext>0?' · Faltan '+ptsToNext+' pts':' · ¡Nivel máximo!'}</p>
+        <div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${c.pct}%;background:${lv.color}"></div></div></div>
+        <span style="font-size:20px">${lv.stars}</span>
+      </div>`;
+    });
+    el.innerHTML+=`<div class="star-group">
+      <div class="star-group-header" style="background:${lv.hdr};border:1px solid ${lv.color}33">
+        <span style="font-size:26px;color:${lv.color}">${lv.stars}</span>
+        <div><p class="star-group-label" style="color:${lv.color}">${lv.label}</p><p class="star-group-count" style="color:${lv.color}99">${lv.range} · ${clubsInLevel.length} club${clubsInLevel.length>1?'es':''}</p></div>
+      </div>${items}
+    </div>`;
+  });
+  if(!any)el.innerHTML='<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">Aún no hay puntajes registrados.</p></div>';
+}
+
+function openEdit(idx){
+  ST.editIdx=idx;
+  const sc=ST.scores[idx];const club=DB.clubs.find(c=>c.id===sc.clubId);const ev=EVENTS.find(e=>e.id===sc.eventId);
+  document.getElementById('modal-edit-info').textContent=`${club.name} — ${ev.name}`;
+  document.getElementById('modal-max-lbl').textContent=`(máx ${ev.max} pts)`;
+  document.getElementById('modal-score').value=sc.score;document.getElementById('modal-score').max=ev.max;
+  document.getElementById('modal-note').value='';
+  document.getElementById('modal-note').style.borderColor='#FAC775';
+  document.getElementById('modal-err').style.display='none';
+  document.getElementById('modal-edit').classList.add('open');
+  document.getElementById('modal-score').oninput=function(){
+    document.getElementById('modal-prog').style.width=Math.min(100,Math.round((parseInt(this.value)||0)/ev.max*100))+'%';
+  };
+}
+async function saveEdit(){
+  const sc=parseInt(document.getElementById('modal-score').value);
+  const note=document.getElementById('modal-note').value.trim();
+  const ev=EVENTS.find(e=>e.id===ST.scores[ST.editIdx].eventId);
+  const err=document.getElementById('modal-err');
+  if(isNaN(sc)||sc<0){err.style.display='block';err.textContent='Ingresa un puntaje válido.';return;}
+  if(ev&&sc>ev.max){err.style.display='block';err.textContent=`Máximo: ${ev.max} pts.`;return;}
+  if(!note){
+    err.style.display='block';
+    err.textContent='⚠️ La justificación es obligatoria. Explique por qué está editando este puntaje.';
+    document.getElementById('modal-note').style.borderColor='#E24B4A';
+    document.getElementById('modal-note').focus();
+    return;
+  }
+  ST.scores[ST.editIdx].score=sc;
+  ST.scores[ST.editIdx].note=note;
+  ST.scores[ST.editIdx].editedAt=Date.now();
+  ST.scores[ST.editIdx].editedBy=ST.current.name;
+  await saveScoresToFirebase();closeModal('modal-edit');
+}
+
+function populateAdmSelects(){
+  const cs=document.getElementById('adm-club');
+  cs.innerHTML='<option value="">Seleccionar club...</option>';
+  DB.clubs.forEach(c=>cs.innerHTML+=`<option value="${c.id}">${c.name} (${c.cat})</option>`);
+  admUpdateEvent();
+}
+function admUpdateEvent(){
+  const cid=parseInt(document.getElementById('adm-club').value);const club=DB.clubs.find(c=>c.id===cid);
+  const es=document.getElementById('adm-event');es.innerHTML='<option value="">Seleccionar evento...</option>';
+  EVENTS.filter(e=>!e.cat||!club||e.cat===club.cat).forEach(e=>es.innerHTML+=`<option value="${e.id}">${e.name} (${e.max} pts)</option>`);
+  admUpdateMax();
+}
+function admUpdateMax(){
+  const ev=EVENTS.find(x=>x.id===parseInt(document.getElementById('adm-event').value));
+  document.getElementById('adm-max-lbl').textContent=ev?`— máx ${ev.max} pts`:'';
+  if(ev)document.getElementById('adm-score').max=ev.max;admProgress();
+}
+function admProgress(){
+  const ev=EVENTS.find(x=>x.id===parseInt(document.getElementById('adm-event').value));
+  const max=ev?ev.max:100;const val=parseInt(document.getElementById('adm-score').value)||0;
+  document.getElementById('adm-prog').style.width=Math.min(100,Math.round(val/max*100))+'%';
+}
+async function admSubmit(){
+  const cid=parseInt(document.getElementById('adm-club').value);const eid=parseInt(document.getElementById('adm-event').value);
+  const sc=parseInt(document.getElementById('adm-score').value);const note=document.getElementById('adm-note').value;
+  const msg=document.getElementById('adm-msg');const ev=EVENTS.find(x=>x.id===eid);
+  if(!cid||!eid||isNaN(sc)){msg.className='err';msg.style.display='block';msg.textContent='Completa todos los campos.';return;}
+  if(ev&&sc>ev.max){msg.className='err';msg.style.display='block';msg.textContent=`Máximo: ${ev.max} pts.`;return;}
+  ST.scores.push({clubId:cid,eventId:eid,score:sc,note,evalId:ST.current.id,ts:Date.now()});
+  await saveScoresToFirebase();
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Puntaje guardado.';
+  document.getElementById('adm-score').value='';document.getElementById('adm-note').value='';document.getElementById('adm-prog').style.width='0%';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+
+function renderClubsDetail(){
+  const el=document.getElementById('clubs-detail');el.innerHTML='';
+  DB.clubs.forEach(c=>{
+    const total=clubTotal(c.id);const pct=Math.round(total/getMaxPts()*100);const star=getStarInfo(pct);const pos=getPosInfo(c.id);
+    const clubEvts=EVENTS.filter(e=>!e.cat||e.cat===c.cat);
+    let secHtml='';
+    DIVKEYS.forEach(div=>{
+      const evts=clubEvts.filter(e=>e.div===div);if(!evts.length)return;
+      secHtml+=`<p class="sec-label" style="font-size:10px">${DIVNAMES[div]}</p>`;
+      evts.forEach(ev=>{
+        const sc=ST.scores.find(s=>s.clubId===c.id&&s.eventId===ev.id);const idx=sc?ST.scores.indexOf(sc):-1;
+        secHtml+=`<div class="event-row ${sc?'evaluated':'pending'}">
+          <div style="display:flex;align-items:center;gap:8px"><div class="event-dot ${sc?'dot-ok':'dot-pending'}"></div><p style="font-size:12px">${ev.name}</p></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${sc?scoreBadge(sc.score,ev.max):`<span style="font-size:11px;color:#bbb">— / ${ev.max}</span>`}
+            ${sc?`<button class="btn btn-edit btn-sm" onclick="openEdit(${idx})">✏️</button>`:''}
+          </div>
+        </div>`;
+      });
+    });
+    el.innerHTML+=`<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div class="avatar ${avCls(c.cat)}">${initials(c.name)}</div>
+      <div style="flex:1">${catTag(c.cat)}<p style="font-size:14px;font-weight:700;margin-top:4px">${c.name}</p>
+      <p style="font-size:12px;color:#666">${total} pts · ${pct}% · ${posMedal(pos.posCat)} en ${catName(c.cat)} · ${posMedal(pos.posGeneral)} general</p></div>
+      <span style="font-size:18px;color:${star.color}">${star.stars}</span>
+    </div>
+    <div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" style="width:${pct}%;background:${star.color}"></div></div>
+    ${secHtml}</div>`;
+  });
+}
+
+function renderHistorial(){
+  const sorted=ST.scores.slice().sort((a,b)=>b.ts-a.ts);
+  let html=`<thead><tr><th>Club</th><th>Evento</th><th>Puntaje</th><th>Evaluador</th><th>Fecha</th><th></th></tr></thead><tbody>`;
+  if(!sorted.length)html+=`<tr><td colspan="6" style="text-align:center;color:#999;padding:16px">Sin puntajes aún</td></tr>`;
+  sorted.forEach(sc=>{
+    const idx=ST.scores.indexOf(sc);
+    const c=DB.clubs.find(x=>x.id===sc.clubId);const ev=EVENTS.find(x=>x.id===sc.eventId);
+    const eu=DB.evaluadores.find(x=>x.id===sc.evalId)||DB.admins.find(x=>x.id===sc.evalId);
+    if(!c||!ev)return;
+    const fecha=new Date(sc.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    html+=`<tr><td>${c.name}</td><td style="font-size:12px">${ev.name}</td><td>${scoreBadge(sc.score,ev.max)}</td>
+      <td style="font-size:12px;color:#666">${eu?eu.name:'—'}</td>
+      <td style="font-size:11px;color:#999">${fecha}${sc.editedAt?' ✏️':''}</td>
+      <td><button class="btn btn-edit btn-sm" onclick="openEdit(${idx})">✏️</button></td></tr>`;
+  });
+  document.getElementById('hist-table').innerHTML=html+'</tbody>';
+}
+
+function renderGestionClubes(){
+  const el=document.getElementById('gestion-clubes');
+  let html=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="font-size:14px;font-weight:700">Clubes (${DB.clubs.length})</h3>
+    <button class="btn btn-primary btn-sm" onclick="openUserModal('club','new')">+ Agregar club</button>
+  </div>`;
+  ['kids','junior','senior'].forEach(cat=>{
+    const cats=DB.clubs.filter(c=>c.cat===cat);if(!cats.length)return;
+    html+=`<p class="sec-label">${catName(cat)}</p>`;
+    cats.forEach(c=>{
+      html+=`<div class="user-item">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          <div class="avatar ${avCls(c.cat)}">${initials(c.name)}</div>
+          <div><p style="font-size:13px;font-weight:600">${c.name}</p>
+          <p style="font-size:11px;color:#666">Clave: <code style="background:#f5f5f0;padding:2px 6px;border-radius:4px">${c.pass}</code></p></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-edit btn-sm" onclick="openUserModal('club','edit',${c.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('club',${c.id},'${c.name}')">🗑️</button>
+        </div>
+      </div>`;
+    });
+  });
+  if(!DB.clubs.length)html+=`<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin clubes registrados.</p>`;
+  html+='</div>';el.innerHTML=html;
+}
+
+function renderGestionEvaluadores(){
+  const el=document.getElementById('gestion-evaluadores');
+  let html=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="font-size:14px;font-weight:700">Evaluadores (${DB.evaluadores.length})</h3>
+    <button class="btn btn-primary btn-sm" onclick="openUserModal('eval','new')">+ Agregar evaluador</button>
+  </div>`;
+  DB.evaluadores.forEach(e=>{
+    const evNames=e.evalIds.map(eid=>{const ev=EVENTS.find(x=>x.id===eid);return ev?ev.name:'?';}).join(', ');
+    html+=`<div class="user-item">
+      <div style="flex:1"><p style="font-size:13px;font-weight:600">${e.name}</p>
+      <p style="font-size:11px;color:#666">Clave: <code style="background:#f5f5f0;padding:2px 6px;border-radius:4px">${e.pass}</code></p>
+      <p style="font-size:11px;color:#888;margin-top:3px">Eventos: ${evNames||'Ninguno'}</p></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-edit btn-sm" onclick="openUserModal('eval','edit',${e.id})">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('eval',${e.id},'${e.name}')">🗑️</button>
+      </div>
+    </div>`;
+  });
+  if(!DB.evaluadores.length)html+=`<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin evaluadores registrados.</p>`;
+  html+='</div>';el.innerHTML=html;
+}
+
+function renderGestionAdmins(){
+  const el=document.getElementById('gestion-admins');
+  let html=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="font-size:14px;font-weight:700">Administradores (${DB.admins.length})</h3>
+    <button class="btn btn-primary btn-sm" onclick="openUserModal('admin','new')">+ Agregar admin</button>
+  </div>`;
+  DB.admins.forEach(a=>{
+    html+=`<div class="user-item">
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <div class="avatar av-a">${initials(a.name)}</div>
+        <div><p style="font-size:13px;font-weight:600">${a.name}</p>
+        <p style="font-size:11px;color:#666">Clave: <code style="background:#f5f5f0;padding:2px 6px;border-radius:4px">${a.pass}</code></p></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-edit btn-sm" onclick="openUserModal('admin','edit',${a.id})">✏️</button>
+        ${DB.admins.length>1?`<button class="btn btn-sm btn-danger" onclick="eliminarUsuario('admin',${a.id},'${a.name}')">🗑️</button>`:'<span style="font-size:11px;color:#bbb;padding:5px">Mín. 1</span>'}
+      </div>
+    </div>`;
+  });
+  html+='</div>';el.innerHTML=html;
+}
+
+function renderGestionDisciplina(){
+  const el=document.getElementById('gestion-disciplina');
+  const disc=DB.disciplina||{puntosIniciales:1000,evalIds:[]};
+  const evalAsignados=disc.evalIds.map(id=>{const e=DB.evaluadores.find(x=>x.id===id);return e?e.name:'?';}).join(', ');
+  const checkboxes=DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="disc-eval-${e.id}" value="${e.id}" ${disc.evalIds.includes(e.id)?'checked':''}/>${e.name}</label>`).join('');
+
+  let faltasHtml='';
+  if(ST.faltas&&ST.faltas.length){
+    const sorted=[...ST.faltas].sort((a,b)=>b.ts-a.ts);
+    faltasHtml=sorted.map(f=>{
+      const c=DB.clubs.find(x=>x.id===f.clubId);const eu=DB.evaluadores.find(x=>x.id===f.evalId)||DB.admins.find(x=>x.id===f.evalId);
+      const fecha=new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const idx=ST.faltas.indexOf(f);
+      return`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div><p style="font-size:13px;font-weight:600">${c?c.name:'?'}</p>
+          <p style="font-size:12px;color:#666">${f.nota}</p>
+          <p style="font-size:11px;color:#999">${fecha} · ${eu?eu.name:'?'}</p></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px;font-weight:700;color:#E24B4A">-${f.puntos} pts</span>
+            <button class="btn btn-sm btn-danger" onclick="eliminarFalta(${idx})">🗑️</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    faltasHtml='<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin faltas registradas.</p>';
+  }
+
+  el.innerHTML=`<div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">🛡️ Configuración de Disciplina</h3>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos iniciales de disciplina</label>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="disc-pts-input" value="${disc.puntosIniciales||1000}" min="0" style="max-width:150px">
+        <button class="btn btn-primary btn-sm" onclick="guardarConfigDisc()">Guardar</button>
+      </div>
+      <p style="font-size:11px;color:#666;margin-top:4px">Todos los clubes arrancan con estos puntos. Se suman al total general.</p>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">Evaluadores de disciplina</label>
+      <div class="checkbox-group">${checkboxes||'<p style="font-size:12px;color:#999">No hay evaluadores registrados.</p>'}</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="guardarEvalDisc()">Guardar evaluadores</button>
+    </div>
+    <div id="disc-config-msg" style="display:none"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:4px">Resumen por club</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:12px">Puntos iniciales: ${disc.puntosIniciales||1000}</p>
+    <table><thead><tr><th>Club</th><th>Faltas</th><th>Restado</th><th>Disponible</th></tr></thead><tbody>
+    ${DB.clubs.map(c=>{
+      const faltas=ST.faltas?ST.faltas.filter(f=>f.clubId===c.id):[];
+      const restado=faltas.reduce((a,b)=>a+b.puntos,0);
+      const disponible=getDisciplinaTotal(c.id);
+      return`<tr><td>${c.name}</td><td>${faltas.length}</td><td style="color:#E24B4A;font-weight:600">-${restado}</td><td style="color:#1D9E75;font-weight:600">${disponible}</td></tr>`;
+    }).join('')}
+    </tbody></table>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Historial de faltas</h3>
+    ${faltasHtml}
+  </div>`;
+}
+
+async function guardarConfigDisc(){
+  const pts=parseInt(document.getElementById('disc-pts-input').value)||0;
+  if(!DB.disciplina)DB.disciplina={puntosIniciales:pts,evalIds:[]};
+  else DB.disciplina.puntosIniciales=pts;
+  await saveDBToFirebase();
+  const msg=document.getElementById('disc-config-msg');
+  msg.className='notif';msg.style.display='block';msg.textContent=`✓ Puntos de disciplina actualizados a ${pts}.`;
+  setTimeout(()=>msg.style.display='none',2500);
+  renderGestionDisciplina();renderRankings();renderAdmMetrics();
+}
+
+async function guardarEvalDisc(){
+  const evalIds=Array.from(document.querySelectorAll('[id^="disc-eval-"]:checked')).map(x=>parseInt(x.value));
+  if(!DB.disciplina)DB.disciplina={puntosIniciales:1000,evalIds};
+  else DB.disciplina.evalIds=evalIds;
+  await saveDBToFirebase();
+  const msg=document.getElementById('disc-config-msg');
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Evaluadores de disciplina guardados.';
+  setTimeout(()=>msg.style.display='none',2500);
+}
+
+async function eliminarFalta(idx){
+  if(!confirm('¿Eliminar esta falta? La acción no se puede deshacer.'))return;
+  ST.faltas.splice(idx,1);
+  await saveFaltasToFirebase();
+  renderGestionDisciplina();renderRankings();
+}
+
+function renderGestionDivisiones(){
+  const el=document.getElementById('gestion-divisiones');
+  const divs=DB.divisiones||{};
+  let html=`<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-size:14px;font-weight:700">Divisiones (${Object.keys(divs).length})</h3>
+      <button class="btn btn-primary btn-sm" onclick="openDivisionModal('new')">+ Agregar división</button>
+    </div>
+    <p style="font-size:12px;color:#666;margin-bottom:14px">Las divisiones agrupan los eventos. Puede crear, editar o eliminar divisiones según el campamento.</p>`;
+  if(!Object.keys(divs).length){
+    html+=`<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin divisiones registradas.</p>`;
+  } else {
+    Object.entries(divs).sort((a,b)=>a[0]-b[0]).forEach(([id,nombre])=>{
+      const numEvts=EVENTS.filter(e=>e.div==id).length;
+      html+=`<div class="user-item">
+        <div style="flex:1">
+          <p style="font-size:13px;font-weight:600">${nombre}</p>
+          <p style="font-size:11px;color:#666">${numEvts} evento${numEvts!==1?'s':''} asignados · ID: ${id}</p>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-edit btn-sm" onclick="openDivisionModal('edit',${id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarDivision(${id},'${nombre.replace(/'/g,'')}')" ${numEvts>0?'title="Tiene eventos asignados"':''}>🗑️</button>
+        </div>
+      </div>`;
+    });
+  }
+  html+='</div>';el.innerHTML=html;
+}
+
+function openDivisionModal(mode,id){
+  const nombre=mode==='edit'&&DB.divisiones?DB.divisiones[id]||'':'';
+  document.getElementById('modal-user-title').textContent=mode==='new'?'Agregar división':'Editar división';
+  document.getElementById('modal-user-body').innerHTML=`
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nombre de la división</label>
+      <input id="mu-div-nombre" placeholder="ej. División 6 — Eventos Especiales" value="${nombre}">
+      <p style="font-size:11px;color:#666;margin-top:4px">Ejemplo: División 1 — Registro, Eventos Bíblicos, Deportivos, etc.</p>
+    </div>
+    <input type="hidden" id="mu-div-id" value="${id||''}">
+    <input type="hidden" id="mu-div-mode" value="${mode}">`;
+  document.getElementById('modal-user-err').style.display='none';
+  ST.editUserType='division';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+async function eliminarDivision(id,nombre){
+  const numEvts=EVENTS.filter(e=>e.div==id).length;
+  if(numEvts>0){
+    alert(`No puedes eliminar "${nombre}" porque tiene ${numEvts} evento(s) asignados. Primero edita esos eventos y cámbiales la división.`);
+    return;
+  }
+  if(!confirm(`¿Eliminar la división "${nombre}"?`))return;
+  delete DB.divisiones[id];
+  await saveDBToFirebase();
+  syncDivisions();
+  renderGestionDivisiones();
+}
+
+function renderGestionEventos(){
+  const el=document.getElementById('gestion-eventos');
+  const maxPts=getMaxPts();
+  let html=`<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="font-size:14px;font-weight:700">Eventos (${EVENTS.length})</h3>
+      <button class="btn btn-primary btn-sm" onclick="openEventModal('new')">+ Agregar evento</button>
+    </div>
+    <p style="font-size:12px;color:#1D9E75;margin-bottom:14px;font-weight:600">Total máximo actual: ${maxPts} pts</p>`;
+  DIVKEYS.forEach(div=>{
+    const evts=EVENTS.filter(e=>e.div===div);if(!evts.length)return;
+    html+=`<p class="sec-label">${DIVNAMES[div]}</p>`;
+    evts.forEach(ev=>{
+      html+=`<div class="user-item">
+        <div style="flex:1"><p style="font-size:13px;font-weight:600">${ev.name}</p>
+        <p style="font-size:11px;color:#666">${ev.max} pts${ev.cat?' · Solo '+ev.cat:' · Todos los clubes'}</p></div>
+        <button class="btn btn-edit btn-sm" onclick="openEventModal('edit',${ev.id})">✏️ Editar</button>
+      </div>`;
+    });
+  });
+  html+='</div>';el.innerHTML=html;
+}
+
+function openEventModal(mode,id){
+  const ev=mode==='edit'?EVENTS.find(e=>e.id===id):null;
+  const title=mode==='new'?'Agregar evento':'Editar evento';
+  const divOpts=DIVKEYS.map(d=>`<option value="${d}" ${ev&&ev.div===d?'selected':''}>${DIVNAMES[d]||'División '+d}</option>`).join('');
+  const catOpts=`<option value="" ${!ev||!ev.cat?'selected':''}>Todos los clubes</option>
+    <option value="kids" ${ev&&ev.cat==='kids'?'selected':''}>Solo Kids</option>
+    <option value="junior" ${ev&&ev.cat==='junior'?'selected':''}>Solo Junior</option>
+    <option value="senior" ${ev&&ev.cat==='senior'?'selected':''}>Solo Senior</option>`;
+  document.getElementById('modal-user-title').textContent=title;
+  document.getElementById('modal-user-body').innerHTML=`
+    <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nombre del evento</label>
+    <input id="mu-name" placeholder="ej. Declamación bíblica" value="${ev?ev.name:''}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">División</label>
+      <select id="mu-div">${divOpts}</select></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntaje máximo</label>
+      <input id="mu-max" type="number" min="1" placeholder="ej. 300" value="${ev?ev.max:''}"></div>
+    </div>
+    <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Aplica para</label>
+    <select id="mu-cat">${catOpts}</select></div>
+    <input type="hidden" id="mu-event-id" value="${ev?ev.id:''}">
+    <input type="hidden" id="mu-mode" value="${mode}">`;
+  document.getElementById('modal-user-err').style.display='none';
+  ST.editUserType='evento';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+function renderGestionHistorial(){
+  const el=document.getElementById('gestion-historial');
+  let html=`<div class="card">
+    <p style="font-size:13px;color:#666;margin-bottom:16px">Registre aquí el nivel de estrellas que obtuvo cada club en años anteriores. Los clubes lo verán como referencia.</p>`;
+  ['kids','junior','senior'].forEach(cat=>{
+    html+=`<p class="sec-label">${catName(cat)}</p>`;
+    DB.clubs.filter(c=>c.cat===cat).forEach(c=>{
+      const hist=c.historial||{};
+      const years=Object.keys(hist).sort().reverse();
+      html+=`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="avatar ${avCls(c.cat)}">${initials(c.name)}</div>
+            <p style="font-size:13px;font-weight:600">${c.name}</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openHistorialModal(${c.id})">+ Agregar año</button>
+        </div>
+        ${years.length?years.map(y=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:12px;color:#666;min-width:40px">${y}:</span>
+          <span style="font-size:14px">${getStarInfo(0).stars.repeat(0)}${'★'.repeat(hist[y])}</span>
+          <span style="font-size:12px;color:#666">${hist[y]} estrella${hist[y]>1?'s':''}</span>
+          <button class="btn btn-sm" style="padding:2px 8px;font-size:11px;color:#A32D2D;border-color:#F09595" onclick="deleteHistorial(${c.id},'${y}')">✕</button>
+        </div>`).join(''):'<p style="font-size:12px;color:#bbb">Sin historial registrado</p>'}
+      </div>`;
+    });
+  });
+  html+='</div>';el.innerHTML=html;
+}
+
+function openHistorialModal(clubId){
+  const club=DB.clubs.find(c=>c.id===clubId);
+  document.getElementById('modal-user-title').textContent=`Historial — ${club.name}`;
+  document.getElementById('modal-user-body').innerHTML=`
+    <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Año</label>
+    <input id="mu-year" type="number" placeholder="ej. 2025" value="${new Date().getFullYear()-1}"></div>
+    <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Estrellas obtenidas</label>
+    <select id="mu-stars">
+      <option value="2">★★ 2 Estrellas (0%–48%)</option>
+      <option value="3">★★★ 3 Estrellas (49%–62%)</option>
+      <option value="4">★★★★ 4 Estrellas (63%–76%)</option>
+      <option value="5">★★★★★ 5 Estrellas (77%–90%)</option>
+      <option value="6">★★★★★★ 6 Estrellas (91%–100%)</option>
+    </select></div>
+    <input type="hidden" id="mu-hist-club" value="${clubId}">`;
+  document.getElementById('modal-user-err').style.display='none';
+  ST.editUserType='historial';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+async function deleteHistorial(clubId,year){
+  const club=DB.clubs.find(c=>c.id===clubId);
+  if(!club.historial)club.historial={};
+  delete club.historial[year];
+  await saveDBToFirebase();
+  renderGestionHistorial();
+}
+
+function renderGestionCreds(){
+  const el=document.getElementById('gestion-creds');
+  let html=`<div class="card"><p style="font-size:13px;color:#666;margin-bottom:16px">Distribuye estas claves de forma privada.</p>`;
+  html+=`<p class="sec-label">Administradores</p>`;
+  DB.admins.forEach(u=>{html+=`<div class="cred-row"><p style="font-size:13px;flex:1">${u.name}</p><code style="font-size:12px;background:#f5f5f0;padding:4px 10px;border-radius:6px;border:1px solid #e5e5e0">${u.pass}</code></div>`;});
+  html+=`<p class="sec-label">Evaluadores</p>`;
+  DB.evaluadores.forEach(u=>{html+=`<div class="cred-row"><p style="font-size:13px;flex:1">${u.name}</p><code style="font-size:12px;background:#f5f5f0;padding:4px 10px;border-radius:6px;border:1px solid #e5e5e0">${u.pass}</code></div>`;});
+  html+=`<p class="sec-label">Clubes</p>`;
+  DB.clubs.forEach(u=>{html+=`<div class="cred-row"><p style="font-size:13px;flex:1">${u.name} ${catTag(u.cat)}</p><code style="font-size:12px;background:#f5f5f0;padding:4px 10px;border-radius:6px;border:1px solid #e5e5e0">${u.pass}</code></div>`;});
+  html+=`<div style="margin-top:14px"><button class="btn btn-pdf btn-sm" onclick="window.print()">Imprimir</button></div></div>`;
+  el.innerHTML=html;
+}
+
+async function eliminarUsuario(tipo, id, nombre){
+  if(!confirm(`¿Eliminar a "${nombre}"? Esta acción no se puede deshacer.`))return;
+  if(tipo==='club'){
+    DB.clubs=DB.clubs.filter(c=>c.id!==id);
+    ST.scores=ST.scores.filter(s=>s.clubId!==id);
+    await saveScoresToFirebase();
+    renderGestionClubes();renderRankings();renderAdmMetrics();populateAdmSelects();
+  } else if(tipo==='eval'){
+    DB.evaluadores=DB.evaluadores.filter(e=>e.id!==id);
+    renderGestionEvaluadores();
+  } else if(tipo==='admin'){
+    if(DB.admins.length<=1){alert('Debe haber al menos un administrador.');return;}
+    DB.admins=DB.admins.filter(a=>a.id!==id);
+    renderGestionAdmins();
+  }
+  await saveDBToFirebase();
+}
+
+function openUserModal(type,mode,id){
+  ST.editUserType=type;ST.editUserIdx=mode==='edit'?id:null;
+  const title=document.getElementById('modal-user-title');
+  const body=document.getElementById('modal-user-body');
+  let user=null;
+  if(mode==='edit'){
+    if(type==='club')user=DB.clubs.find(c=>c.id===id);
+    else if(type==='eval')user=DB.evaluadores.find(e=>e.id===id);
+    else user=DB.admins.find(a=>a.id===id);
+  }
+  title.textContent=mode==='new'?`Agregar ${type==='club'?'club':type==='eval'?'evaluador':'administrador'}`:`Editar ${type==='club'?'club':type==='eval'?'evaluador':'administrador'}`;
+  if(type==='club'){
+    body.innerHTML=`
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nombre del club</label>
+      <input id="mu-name" placeholder="ej. Guerreros" value="${user?user.name:''}"></div>
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Categoría</label>
+      <select id="mu-cat"><option value="kids" ${user&&user.cat==='kids'?'selected':''}>Kids</option><option value="junior" ${user&&user.cat==='junior'?'selected':''}>Junior</option><option value="senior" ${user&&user.cat==='senior'?'selected':''}>Senior</option></select></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Contraseña</label>
+      <input id="mu-pass" placeholder="ej. club#1234" value="${user?user.pass:''}"></div>`;
+  } else if(type==='eval'){
+    const checkboxes=EVENTS.map(ev=>`<label class="checkbox-item"><input type="checkbox" value="${ev.id}" ${user&&user.evalIds.includes(ev.id)?'checked':''}/>${ev.name}</label>`).join('');
+    body.innerHTML=`
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nombre</label>
+      <input id="mu-name" placeholder="ej. Pedro Gómez" value="${user?user.name:''}"></div>
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Contraseña</label>
+      <input id="mu-pass" placeholder="ej. eval#5678" value="${user?user.pass:''}"></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">Eventos asignados</label>
+      <div class="checkbox-group" id="mu-events">${checkboxes}</div></div>`;
+  } else {
+    body.innerHTML=`
+      <div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Nombre</label>
+      <input id="mu-name" placeholder="ej. Ana Martínez" value="${user?user.name:''}"></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Contraseña</label>
+      <input id="mu-pass" placeholder="ej. camporee2026ana" value="${user?user.pass:''}"></div>`;
+  }
+  document.getElementById('modal-user-err').style.display='none';
+  document.getElementById('modal-user').classList.add('open');
+}
+
+async function saveUser(){
+  const type=ST.editUserType;
+  const err=document.getElementById('modal-user-err');
+
+  if(type==='division'){
+    const nombre=document.getElementById('mu-div-nombre').value.trim();
+    const mode=document.getElementById('mu-div-mode').value;
+    const divId=document.getElementById('mu-div-id').value;
+    if(!nombre){err.style.display='block';err.textContent='El nombre es obligatorio.';return;}
+    if(!DB.divisiones)DB.divisiones={};
+    if(mode==='edit'){
+      DB.divisiones[divId]=nombre;
+    } else {
+      const newId=DB.nextDivId||6;
+      DB.divisiones[newId]=nombre;
+      DB.nextDivId=(newId+1);
+    }
+    await saveDBToFirebase();
+    syncDivisions();
+    closeModal('modal-user');
+    renderGestionDivisiones();
+    renderGestionEventos();
+    return;
+  }
+
+  if(type==='evento'){
+    const name=document.getElementById('mu-name').value.trim();
+    const div=parseInt(document.getElementById('mu-div').value);
+    const max=parseInt(document.getElementById('mu-max').value);
+    const cat=document.getElementById('mu-cat').value||undefined;
+    const mode=document.getElementById('mu-mode').value;
+    const evId=parseInt(document.getElementById('mu-event-id').value);
+    if(!name||!max){err.style.display='block';err.textContent='Nombre y puntaje son obligatorios.';return;}
+    if(mode==='edit'){
+      const ev=EVENTS.find(e=>e.id===evId);
+      ev.name=name;ev.div=div;ev.max=max;ev.cat=cat;
+    } else {
+      EVENTS.push({id:DB.nextEventId++,div,name,max,evalIds:[],cat});
+    }
+    await saveDBToFirebase();closeModal('modal-user');
+    renderGestionEventos();populateAdmSelects();
+    return;
+  }
+
+  if(type==='historial'){
+    const clubId=parseInt(document.getElementById('mu-hist-club').value);
+    const year=document.getElementById('mu-year').value.trim();
+    const stars=parseInt(document.getElementById('mu-stars').value);
+    if(!year){err.style.display='block';err.textContent='El año es obligatorio.';return;}
+    const club=DB.clubs.find(c=>c.id===clubId);
+    if(!club.historial)club.historial={};
+    club.historial[year]=stars;
+    await saveDBToFirebase();closeModal('modal-user');
+    renderGestionHistorial();
+    return;
+  }
+
+  const id=ST.editUserIdx;
+  const name=document.getElementById('mu-name').value.trim();
+  const pass=document.getElementById('mu-pass').value.trim();
+  if(!name||!pass){err.style.display='block';err.textContent='Nombre y contraseña son obligatorios.';return;}
+  if(type==='club'){
+    const cat=document.getElementById('mu-cat').value;
+    if(id){const c=DB.clubs.find(x=>x.id===id);c.name=name;c.pass=pass;c.cat=cat;}
+    else{DB.clubs.push({id:DB.nextId++,name,cat,pass,historial:{}});}
+  } else if(type==='eval'){
+    const evalIds=Array.from(document.querySelectorAll('#mu-events input:checked')).map(x=>parseInt(x.value));
+    if(id){const e=DB.evaluadores.find(x=>x.id===id);e.name=name;e.pass=pass;e.evalIds=evalIds;}
+    else{DB.evaluadores.push({id:DB.nextId++,name,pass,evalIds});}
+  } else {
+    if(id){const a=DB.admins.find(x=>x.id===id);a.name=name;a.pass=pass;}
+    else{DB.admins.push({id:DB.nextId++,name,pass});}
+  }
+  await saveDBToFirebase();closeModal('modal-user');
+  if(type==='club'){renderGestionClubes();renderRankings();renderAdmMetrics();populateAdmSelects();}
+  else if(type==='eval')renderGestionEvaluadores();
+  else renderGestionAdmins();
+}
+
+function evalTab(t){
+  ['registrar','disciplina','misevals'].forEach(x=>{
+    document.getElementById('ep-'+x).style.display=x===t?'block':'none';
+    document.getElementById('etab-'+x).classList.toggle('active',x===t);
+  });
+  if(t==='misevals')renderEvRecent();
+  if(t==='disciplina')renderDiscEvaluador();
+}
+
+function renderDiscEvaluador(){
+  const u=ST.current;
+  const esDisciplina=DB.disciplina&&DB.disciplina.evalIds&&DB.disciplina.evalIds.includes(u.id);
+  const el=document.getElementById('ep-disc-content');
+  if(!esDisciplina){
+    el.innerHTML=`<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">No tienes asignado el rol de disciplina.</p></div>`;
+    return;
+  }
+  const pts=DB.disciplina.puntosIniciales||0;
+  let html=`<div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#FCEBEB;border-radius:8px;border:1px solid #F7C1C1">
+      <span style="font-size:24px">🛡️</span>
+      <div><p style="font-size:13px;font-weight:700;color:#791F1F">Disciplina</p>
+      <p style="font-size:12px;color:#A32D2D">Puntos iniciales: ${pts} pts · Solo puedes descontar</p></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club</label>
+      <select id="disc-club" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit">
+        <option value="">Seleccionar club...</option>
+        ${DB.clubs.map(c=>`<option value="${c.id}">${c.name} (${catName(c.cat)}) — ${getDisciplinaTotal(c.id)} pts disponibles</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos a descontar</label>
+      <input type="number" id="disc-puntos" min="1" placeholder="ej. 50" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Motivo de la falta <span style="color:#A32D2D;font-weight:700">* obligatorio</span></label>
+      <textarea id="disc-nota" rows="3" style="resize:none;width:100%;padding:9px 11px;border:1px solid #FAC775;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit" placeholder="Describa detalladamente la falta..."></textarea>
+    </div>
+    <div id="disc-msg" style="display:none"></div>
+    <button class="btn btn-sm" style="background:#E24B4A;color:#fff;border-color:#E24B4A;padding:8px 20px" onclick="registrarFaltaEval()">Registrar falta</button>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Faltas registradas</h3>
+    <div id="disc-lista-eval"></div>
+  </div>`;
+  el.innerHTML=html;
+  renderDiscListaEval();
+}
+
+async function registrarFaltaEval(){
+  const cid=parseInt(document.getElementById('disc-club').value);
+  const pts=parseInt(document.getElementById('disc-puntos').value);
+  const nota=document.getElementById('disc-nota').value.trim();
+  const msg=document.getElementById('disc-msg');
+  if(!cid||isNaN(pts)||pts<=0){msg.className='err';msg.style.display='block';msg.textContent='Selecciona un club y puntos válidos.';return;}
+  if(!nota){msg.className='err';msg.style.display='block';msg.textContent='⚠️ El motivo de la falta es obligatorio.';return;}
+  const disponibles=getDisciplinaTotal(cid);
+  if(pts>disponibles){msg.className='err';msg.style.display='block';msg.textContent=`Máximo disponible: ${disponibles} pts.`;return;}
+  ST.faltas.push({clubId:cid,puntos:pts,nota,evalId:ST.current.id,ts:Date.now()});
+  await saveFaltasToFirebase();
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Falta registrada.';
+  document.getElementById('disc-puntos').value='';document.getElementById('disc-nota').value='';
+  renderDiscListaEval();
+  setTimeout(()=>msg.style.display='none',3000);
+}
+
+function renderDiscListaEval(){
+  const el=document.getElementById('disc-lista-eval');if(!el)return;
+  const mine=ST.faltas?ST.faltas.filter(f=>f.evalId===ST.current.id).sort((a,b)=>b.ts-a.ts):[];
+  if(!mine.length){el.innerHTML='<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin faltas registradas.</p>';return;}
+  el.innerHTML=mine.map(f=>{
+    const c=DB.clubs.find(x=>x.id===f.clubId);if(!c)return'';
+    const fecha=new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <p style="font-size:13px;font-weight:600">${c.name}</p>
+        <span style="font-size:13px;font-weight:700;color:#E24B4A">-${f.puntos} pts</span>
+      </div>
+      <p style="font-size:12px;color:#666">${f.nota}</p>
+      <p style="font-size:11px;color:#999;margin-top:3px">${fecha}</p>
+    </div>`;
+  }).join('');
+}
+
+function renderEval(){
+  const u=ST.current;document.getElementById('ev-name').textContent=u.name;
+  const myEvs=EVENTS.filter(e=>e.evalIds.includes(u.id));
+  document.getElementById('ev-events-info').innerHTML=myEvs.length
+    ?myEvs.map(e=>`<span style="display:inline-block;background:#f5f5f0;border:1px solid #e5e5e0;border-radius:6px;padding:4px 10px;font-size:12px;margin:2px">${e.name}</span>`).join('')
+    :'<p style="font-size:13px;color:#999">Sin eventos asignados.</p>';
+  const cs=document.getElementById('ev-club');const es=document.getElementById('ev-event');
+  cs.innerHTML='<option value="">Seleccionar club...</option>';
+  es.innerHTML='<option value="">Seleccionar evento...</option>';
+  const addedClubs=new Set();
+  myEvs.forEach(e=>{
+    DB.clubs.filter(c=>!e.cat||e.cat===c.cat).forEach(c=>{
+      if(!addedClubs.has(c.id)){addedClubs.add(c.id);cs.innerHTML+=`<option value="${c.id}">${c.name} (${c.cat})</option>`;}
+    });
+    es.innerHTML+=`<option value="${e.id}">${e.name} (${e.max} pts)</option>`;
+  });
+  evalTab('registrar');
+}
+function evUpdateMax(){
+  const ev=EVENTS.find(x=>x.id===parseInt(document.getElementById('ev-event').value));
+  document.getElementById('ev-max-lbl').textContent=ev?`— máx ${ev.max} pts`:'';
+  if(ev)document.getElementById('ev-score').max=ev.max;evProgress();
+}
+function evProgress(){
+  const ev=EVENTS.find(x=>x.id===parseInt(document.getElementById('ev-event').value));
+  const max=ev?ev.max:100;const val=parseInt(document.getElementById('ev-score').value)||0;
+  document.getElementById('ev-prog').style.width=Math.min(100,Math.round(val/max*100))+'%';
+}
+async function evSubmit(){
+  const cid=parseInt(document.getElementById('ev-club').value);const eid=parseInt(document.getElementById('ev-event').value);
+  const sc=parseInt(document.getElementById('ev-score').value);const note=document.getElementById('ev-note').value;
+  const msg=document.getElementById('ev-msg');const ev=EVENTS.find(x=>x.id===eid);
+  if(!cid||!eid||isNaN(sc)){msg.className='err';msg.style.display='block';msg.textContent='Completa todos los campos.';return;}
+  if(ev&&sc>ev.max){msg.className='err';msg.style.display='block';msg.textContent=`Máximo: ${ev.max} pts.`;return;}
+  ST.scores.push({clubId:cid,eventId:eid,score:sc,note,evalId:ST.current.id,ts:Date.now()});
+  await saveScoresToFirebase();
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Puntaje registrado.';
+  document.getElementById('ev-score').value='';document.getElementById('ev-note').value='';document.getElementById('ev-prog').style.width='0%';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+function renderEvRecent(){
+  const mine=ST.scores.filter(s=>s.evalId===ST.current.id).sort((a,b)=>b.ts-a.ts);
+  let html=`<thead><tr><th>Club</th><th>Evento</th><th>Puntaje</th><th>Fecha</th><th></th></tr></thead><tbody>`;
+  if(!mine.length)html+=`<tr><td colspan="5" style="text-align:center;color:#999;padding:14px">Sin evaluaciones aún</td></tr>`;
+  mine.forEach(sc=>{
+    const idx=ST.scores.indexOf(sc);const c=DB.clubs.find(x=>x.id===sc.clubId);const ev=EVENTS.find(x=>x.id===sc.eventId);if(!c||!ev)return;
+    const fecha=new Date(sc.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    html+=`<tr><td>${c.name}</td><td style="font-size:12px">${ev.name}</td><td>${scoreBadge(sc.score,ev.max)}</td>
+      <td style="font-size:11px;color:#999">${fecha}${sc.editedAt?' ✏️':''}</td>
+      <td><button class="btn btn-edit btn-sm" onclick="openEdit(${idx})">✏️ Editar</button></td></tr>`;
+  });
+  document.getElementById('ev-recent').innerHTML=html+'</tbody>';
+}
+
+function renderClub(){
+  const u=ST.current;const club=DB.clubs.find(c=>c.id===u.clubId);
+  if(!club)return;
+  document.getElementById('club-header-info').innerHTML=`
+    <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">${DB.campName||'Control de Puntaje'}</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+      <div class="avatar ${avCls(club.cat)}">${initials(club.name)}</div>
+      <div>${catTag(club.cat)}<h2 style="font-size:18px;font-weight:700;margin-top:4px">${club.name}</h2></div>
+    </div>`;
+  const total=clubTotal(club.id);const pct=Math.round(total/getMaxPts()*100);
+  const star=getStarInfo(pct);const pos=getPosInfo(club.id);
+  const c1=posCardColor(pos.posCat);const c2=posCardColor(pos.posGeneral);
+  document.getElementById('club-pos-cards').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" class="grid2">
+      <div class="pos-card" style="background:${c1.bg};border:1px solid ${c1.color}33">
+        <div class="pos-card-num" style="color:${c1.color}">${posMedal(pos.posCat)}</div>
+        <div class="pos-card-lbl" style="color:${c1.color}">Lugar en ${catName(club.cat)}</div>
+        <div style="font-size:11px;color:#999;margin-top:2px">Entre ${pos.totalCat} clubes</div>
+      </div>
+      <div class="pos-card" style="background:${c2.bg};border:1px solid ${c2.color}33">
+        <div class="pos-card-num" style="color:${c2.color}">${posMedal(pos.posGeneral)}</div>
+        <div class="pos-card-lbl" style="color:${c2.color}">Lugar general</div>
+        <div style="font-size:11px;color:#999;margin-top:2px">Entre ${pos.totalClubs} clubes</div>
+      </div>
+    </div>`;
+  const nextPct=star.n<6?[49,63,77,91][star.n-2]:null;
+  const ptsToNext=nextPct?Math.ceil((nextPct/100)*getMaxPts())-total:0;
+  const hist=club.historial||{};
+  const histYears=Object.keys(hist).sort().reverse();
+  const histHtml=histYears.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08)">
+    <p style="font-size:11px;font-weight:600;color:${star.color};margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Historial de años anteriores</p>
+    ${histYears.map(y=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+      <span style="font-size:12px;color:#666;min-width:36px">${y}:</span>
+      <span style="font-size:14px">${'★'.repeat(hist[y])}</span>
+      <span style="font-size:11px;color:#666">${hist[y]} estrella${hist[y]>1?'s':''}</span>
+      ${hist[y]<star.n?'<span style="font-size:11px;color:#1D9E75;font-weight:600">↑ ¡Mejoraste!</span>':hist[y]>star.n?'<span style="font-size:11px;color:#A32D2D;font-weight:600">↓ A superarlo</span>':'<span style="font-size:11px;color:#666">= Igual que antes</span>'}
+    </div>`).join('')}
+  </div>`:'';
+  document.getElementById('club-star-banner').innerHTML=`
+    <div class="card" style="background:${star.hdr}">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:44px;line-height:1">${star.stars}</div>
+        <div style="flex:1">
+          <p style="font-size:18px;font-weight:800;color:${star.color}">${star.label}</p>
+          <p style="font-size:13px;color:#666;margin-top:2px">${total} de 6,650 pts · ${pct}%</p>
+          ${ptsToNext>0?`<p style="font-size:12px;color:#999;margin-top:4px">Necesitas <strong>${ptsToNext} pts</strong> más para ${star.n+1} estrellas</p>`:`<p style="font-size:12px;color:#1D9E75;font-weight:700;margin-top:4px">¡Nivel máximo alcanzado!</p>`}
+        </div>
+      </div>
+      <div class="progress-bar" style="margin-top:12px;height:10px"><div class="progress-fill" style="width:${pct}%;background:${star.color}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#bbb;margin-top:4px">
+        <span>0%</span><span>49%★★★</span><span>63%★★★★</span><span>77%★★★★★</span><span>91%★×6</span><span>100%</span>
+      </div>
+      ${histHtml}
+    </div>`;
+  document.getElementById('club-metrics').innerHTML=`
+    <div class="metric"><div class="metric-val">${ST.scores.filter(s=>s.clubId===club.id).length}</div><div class="metric-lbl">Eventos evaluados</div></div>
+    <div class="metric"><div class="metric-val">${clubTotalConDisciplina(club.id)}</div><div class="metric-lbl">Puntos totales</div></div>
+    <div class="metric"><div class="metric-val">${pct}%</div><div class="metric-lbl">Del total (${getMaxPts()})</div></div>`;
+
+  const discPts=getDisciplinaTotal(club.id);
+  const discInicial=DB.disciplina?DB.disciplina.puntosIniciales||0:0;
+  const discFaltas=ST.faltas?ST.faltas.filter(f=>f.clubId===club.id).sort((a,b)=>b.ts-a.ts):[];
+  const discRestado=discFaltas.reduce((a,b)=>a+b.puntos,0);
+  const discPct=discInicial>0?Math.round(discPts/discInicial*100):100;
+
+  const discSection=`<div class="card" style="border-color:${discRestado>0?'#F7C1C1':'#9FE1CB'};margin-bottom:1rem">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:24px">🛡️</span>
+      <div style="flex:1">
+        <p style="font-size:14px;font-weight:700">Disciplina</p>
+        <p style="font-size:12px;color:#666">Iniciaste con ${discInicial} pts · Restado: ${discRestado} pts</p>
+      </div>
+      <div style="text-align:right">
+        <p style="font-size:22px;font-weight:800;color:${discPts<discInicial?'#E24B4A':'#1D9E75'}">${discPts}</p>
+        <p style="font-size:11px;color:#666">pts disponibles</p>
+      </div>
+    </div>
+    <div class="progress-bar" style="height:8px;margin-bottom:${discFaltas.length?'12px':'0'}">
+      <div style="height:100%;border-radius:4px;background:${discPts<discInicial*0.5?'#E24B4A':discPts<discInicial*0.8?'#EF9F27':'#1D9E75'};width:${discPct}%;transition:width 0.4s"></div>
+    </div>
+    ${discFaltas.length?discFaltas.map(f=>`<div style="padding:8px 0;border-top:1px solid #f0f0ea">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <p style="font-size:12px;color:#666">${f.nota}</p>
+        <span style="font-size:12px;font-weight:700;color:#E24B4A;flex-shrink:0;margin-left:10px">-${f.puntos} pts</span>
+      </div>
+      <p style="font-size:11px;color:#bbb;margin-top:2px">${new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
+    </div>`).join(''):''}
+  </div>`;
+
+  const elSec=document.getElementById('club-events-by-section');
+  elSec.innerHTML=discSection;
+  const clubEvts=EVENTS.filter(e=>!e.cat||e.cat===club.cat);
+  DIVKEYS.forEach(div=>{
+    const evts=clubEvts.filter(e=>e.div===div);if(!evts.length)return;
+    const secTotal=evts.reduce((a,e)=>{const sc=ST.scores.find(s=>s.clubId===club.id&&s.eventId===e.id);return a+(sc?sc.score:0);},0);
+    const secMax=evts.reduce((a,e)=>a+e.max,0);
+    const evaluated=evts.filter(e=>ST.scores.find(s=>s.clubId===club.id&&s.eventId===e.id)).length;
+    elSec.innerHTML+=`<div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <p style="font-size:13px;font-weight:700">${DIVNAMES[div]}</p>
+        <div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:#666">${evaluated}/${evts.length} evaluados</span>${scoreBadge(secTotal,secMax)}</div>
+      </div>
+      <div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" style="width:${Math.round(secTotal/secMax*100)}%"></div></div>
+      ${evts.map(ev=>{
+        const sc=ST.scores.find(s=>s.clubId===club.id&&s.eventId===ev.id);
+        return`<div class="event-row ${sc?'evaluated':'pending'}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="event-dot ${sc?'dot-ok':'dot-pending'}"></div>
+            <div><p style="font-size:13px;font-weight:${sc?'600':'400'}">${ev.name}</p>${sc&&sc.note?`<p style="font-size:11px;color:#666">${sc.note}</p>`:''}</div>
+          </div>
+          ${sc?scoreBadge(sc.score,ev.max):`<span style="font-size:11px;color:#bbb">— / ${ev.max}</span>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+}
+
+function generarPDF(){
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210;let y=18;
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(29,158,117);
+  doc.text('ASOCIACIÓN CENTRO OCCIDENTAL — MINISTERIO JUVENIL',W/2,y,{align:'center'});y+=6;
+  doc.setFontSize(16);doc.setTextColor(20,20,20);doc.text(DB.campName||'Control de Puntaje',W/2,y,{align:'center'});y+=6;
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text('Control de Puntaje — Reporte Oficial',W/2,y,{align:'center'});y+=5;
+  doc.text('Generado: '+new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),W/2,y,{align:'center'});
+  y+=5;doc.setDrawColor(29,158,117);doc.setLineWidth(0.5);doc.line(14,y,196,y);y+=8;
+  ['kids','junior','senior'].forEach(cat=>{
+    if(y>255){doc.addPage();y=20;}
+    const label=cat==='kids'?'CATEGORIA KIDS':cat==='junior'?'CATEGORIA JUNIOR':'CATEGORIA SENIOR';
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(29,158,117);doc.text(label,14,y);y+=7;
+    const ranked=DB.clubs.filter(c=>c.cat===cat).map(c=>{const total=clubTotal(c.id);const pct=Math.round(total/getMaxPts()*100);const pos=getPosInfo(c.id);return{...c,total,pct,star:getStarInfo(pct),pos};}).sort((a,b)=>b.total-a.total);
+    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(80,80,80);
+    doc.text('Pos.',14,y);doc.text('Club',28,y);doc.text('Pts',95,y);doc.text('%',115,y);doc.text('Nivel',130,y);doc.text('Gral.',170,y);
+    y+=2;doc.setDrawColor(220,220,220);doc.line(14,y,196,y);y+=5;
+    ranked.forEach((c,i)=>{
+      if(y>265){doc.addPage();y=20;}
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(40,40,40);
+      doc.text((i+1)+'°',14,y);doc.text(c.name,28,y);doc.text(String(c.total),95,y);doc.text(c.pct+'%',115,y);doc.text(c.star.label,130,y);doc.text(c.pos.posGeneral+'° gral.',170,y);y+=5;
+      const clubEvts=EVENTS.filter(e=>!e.cat||e.cat===c.cat);
+      DIVKEYS.forEach(div=>{
+        const evts=clubEvts.filter(e=>e.div===div);if(!evts.length)return;
+        if(y>265){doc.addPage();y=20;}
+        doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,120,120);doc.text(DIVNAMES[div],30,y);y+=4;
+        evts.forEach(ev=>{
+          if(y>272){doc.addPage();y=20;}
+          const sc=ST.scores.find(s=>s.clubId===c.id&&s.eventId===ev.id);
+          doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(sc?50:180,sc?50:180,sc?50:180);
+          doc.text((sc?'[OK] ':'[--] ')+ev.name,34,y);doc.text(sc?sc.score+'/'+ev.max:'pendiente',130,y);
+          if(sc&&sc.note){doc.setTextColor(140,140,140);doc.text(sc.note.substring(0,30),155,y);}
+          y+=4;
+        });
+      });
+      y+=3;doc.setDrawColor(240,240,240);doc.line(28,y-1,196,y-1);
+    });y+=6;
+  });
+  const pages=doc.getNumberOfPages();
+  for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,180,180);doc.text('Camporee Valientes 2026 — ACO Ministerio Juvenil',14,290);doc.text('Pág. '+i+' / '+pages,196,290,{align:'right'});}
+  doc.save('Camporee_Valientes_2026_Reporte.pdf');
+}
+
+window.addEventListener('firebase-ready', async()=>{
+  const{doc,getDoc}=window.dbFuncs;
+  const db=window.DB_REF;
+  try{
+    const dbSnap=await getDoc(doc(db,'camporee','db'));
+    if(dbSnap.exists())DB=dbSnap.data().data;
+    syncDivisions();
+    const evSnap=await getDoc(doc(db,'camporee','events'));
+    if(evSnap.exists()&&evSnap.data().data.length)EVENTS.splice(0,EVENTS.length,...evSnap.data().data);
+    const scSnap=await getDoc(doc(db,'camporee','scores'));
+    if(scSnap.exists())ST.scores=scSnap.data().data||[];
+    const fSnap=await getDoc(doc(db,'camporee','faltas'));
+    if(fSnap.exists())ST.faltas=fSnap.data().data||[];
+  }catch(e){console.log('Usando datos locales');}
+  updateCampName();
+  showScreen('sc-login');
+});
+</script>
+</body>
+</html>
