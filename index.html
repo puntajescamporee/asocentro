@@ -257,7 +257,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="brand-line1">Asociación Centro Occidental</div>
         <div class="brand-line2">Ministerio Juvenil</div>
-        <div class="brand-title">Camporee de Conquistadores<br>"Valientes" 2026</div>
+        <div class="brand-title" id="login-campname">Camporee de Conquistadores<br>"Valientes" 2026</div>
         <div class="brand-sub">Control de Puntaje</div>
       </div>
       <div class="card">
@@ -307,7 +307,7 @@ tr:last-child td{border-bottom:none}
     <div class="brand-header" style="margin-bottom:1.25rem;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;text-align:left">
       <div>
         <div class="brand-line1">Asociación Centro Occidental · Ministerio Juvenil</div>
-        <div class="brand-title" style="font-size:15px;margin:4px 0 0">Camporee "Valientes" 2026 — Control de Puntaje</div>
+        <div class="brand-title" style="font-size:15px;margin:4px 0 0" id="adm-campname">Camporee "Valientes" 2026 — Control de Puntaje</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="sync-indicator"><span class="sync-dot"></span>En vivo</span>
@@ -406,7 +406,7 @@ tr:last-child td{border-bottom:none}
   <div class="container">
     <div class="header">
       <div>
-        <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Camporee Valientes 2026</div>
+        <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px" id="eval-campname">Camporee Valientes 2026</div>
         <span class="tag tag-eval">Evaluador</span>
         <h2 id="ev-name" style="font-size:18px;font-weight:700;margin-top:4px"></h2>
       </div>
@@ -542,8 +542,15 @@ let DB={
     {id:2,name:'Manuel Mogollón',pass:'camporee2026manuel'},
   ],
   nextId:200,
-  nextEventId:29
+  nextEventId:29,
+  campName:'Camporee de Conquistadores "Valientes" 2026'
 };
+
+function updateCampName(){
+  const name=DB.campName||'Control de Puntaje';
+  const ids=['login-campname','adm-campname','eval-campname','club-campname'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=name;});
+}
 
 function initials(name){return name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();}
 function getStarInfo(pct){
@@ -708,13 +715,14 @@ async function confirmarNuevoCampamento(){
   if(!nombre){msg.className='err';msg.style.display='block';msg.textContent='Escribe el nombre del nuevo campamento.';return;}
   if(!confirm(`¿Estás seguro? Se borrarán TODOS los puntajes, clubes, evaluadores y eventos. Esta acción no se puede deshacer.`))return;
   const admins=DB.admins;
-  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1};
+  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1,campName:nombre};
   EVENTS.splice(0,EVENTS.length);
   ST.scores=[];
   await saveScoresToFirebase();
   await saveDBToFirebase();
+  updateCampName();
   msg.className='notif';msg.style.display='block';
-  msg.textContent=`✓ Nuevo campamento "${nombre}" iniciado. Ya puede agregar clubes, evaluadores y eventos.`;
+  msg.textContent=`✓ "${nombre}" iniciado. Ya puede agregar clubes, evaluadores y eventos.`;
   document.getElementById('nuevo-nombre').value='';
   renderAdmMetrics();renderRankings();populateAdmSelects();
   setTimeout(()=>{msg.style.display='none';gestTab('clubes');},3000);
@@ -1294,7 +1302,7 @@ function renderClub(){
   const u=ST.current;const club=DB.clubs.find(c=>c.id===u.clubId);
   if(!club)return;
   document.getElementById('club-header-info').innerHTML=`
-    <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Camporee Valientes 2026</div>
+    <div style="font-size:11px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">${DB.campName||'Control de Puntaje'}</div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
       <div class="avatar ${avCls(club.cat)}">${initials(club.name)}</div>
       <div>${catTag(club.cat)}<h2 style="font-size:18px;font-weight:700;margin-top:4px">${club.name}</h2></div>
@@ -1380,7 +1388,7 @@ function generarPDF(){
   const W=210;let y=18;
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(29,158,117);
   doc.text('ASOCIACIÓN CENTRO OCCIDENTAL — MINISTERIO JUVENIL',W/2,y,{align:'center'});y+=6;
-  doc.setFontSize(16);doc.setTextColor(20,20,20);doc.text('Camporee de Conquistadores "Valientes" 2026',W/2,y,{align:'center'});y+=6;
+  doc.setFontSize(16);doc.setTextColor(20,20,20);doc.text(DB.campName||'Control de Puntaje',W/2,y,{align:'center'});y+=6;
   doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text('Control de Puntaje — Reporte Oficial',W/2,y,{align:'center'});y+=5;
   doc.text('Generado: '+new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}),W/2,y,{align:'center'});
@@ -1430,6 +1438,7 @@ window.addEventListener('firebase-ready', async()=>{
     const scSnap=await getDoc(doc(db,'camporee','scores'));
     if(scSnap.exists())ST.scores=scSnap.data().data||[];
   }catch(e){console.log('Usando datos locales');}
+  updateCampName();
   showScreen('sc-login');
 });
 </script>
