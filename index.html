@@ -211,6 +211,28 @@ tr:last-child td{border-bottom:none}
   <p style="font-size:14px;color:#666">Conectando con la base de datos...</p>
 </div>
 
+<!-- MODAL DISCIPLINA -->
+<div class="modal-overlay" id="modal-disciplina">
+  <div class="modal-box">
+    <p style="font-size:15px;font-weight:700;margin-bottom:4px">🛡️ Registrar falta de disciplina</p>
+    <p id="modal-disc-info" style="font-size:12px;color:#666;margin-bottom:14px"></p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos a descontar <span style="font-weight:400;color:#999">(disponibles: <span id="modal-disc-disponibles"></span>)</span></label>
+      <input type="number" id="modal-disc-puntos" min="1" placeholder="ej. 50">
+      <div class="progress-bar" style="margin-top:6px"><div style="height:100%;border-radius:4px;background:#E24B4A;transition:width 0.3s" id="modal-disc-prog" style="width:0%"></div></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Motivo de la falta <span style="color:#A32D2D;font-weight:700">* obligatorio</span></label>
+      <textarea id="modal-disc-nota" rows="3" style="resize:none;border-color:#FAC775" placeholder="Describa detalladamente la falta cometida..."></textarea>
+    </div>
+    <div id="modal-disc-err" class="err" style="display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeModal('modal-disciplina')">Cancelar</button>
+      <button class="btn btn-sm" style="background:#E24B4A;color:#fff;border-color:#E24B4A" onclick="guardarFalta()">Registrar falta</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PUNTAJE -->
 <div class="modal-overlay" id="modal-edit">
   <div class="modal-box">
@@ -371,6 +393,7 @@ tr:last-child td{border-bottom:none}
         <button class="tab-btn" onclick="gestTab('evaluadores')" id="gtab-evaluadores">Evaluadores</button>
         <button class="tab-btn" onclick="gestTab('admins')" id="gtab-admins">Administradores</button>
         <button class="tab-btn" onclick="gestTab('eventos')" id="gtab-eventos">Eventos</button>
+        <button class="tab-btn" onclick="gestTab('disciplina')" id="gtab-disciplina">🛡️ Disciplina</button>
         <button class="tab-btn" onclick="gestTab('historial')" id="gtab-historial">Historial ★</button>
         <button class="tab-btn" onclick="gestTab('credenciales')" id="gtab-credenciales">Credenciales</button>
         <button class="tab-btn" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1" onclick="gestTab('nuevo')" id="gtab-nuevo">🔄 Nuevo campamento</button>
@@ -379,6 +402,7 @@ tr:last-child td{border-bottom:none}
       <div id="gp-evaluadores" style="display:none"><div id="gestion-evaluadores"></div></div>
       <div id="gp-admins" style="display:none"><div id="gestion-admins"></div></div>
       <div id="gp-eventos" style="display:none"><div id="gestion-eventos"></div></div>
+      <div id="gp-disciplina" style="display:none"><div id="gestion-disciplina"></div></div>
       <div id="gp-historial" style="display:none"><div id="gestion-historial"></div></div>
       <div id="gp-credenciales" style="display:none"><div id="gestion-creds"></div></div>
       <div id="gp-nuevo" style="display:none">
@@ -417,6 +441,7 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="tab-row">
       <button class="tab-btn active" onclick="evalTab('registrar')" id="etab-registrar">Registrar</button>
+      <button class="tab-btn" onclick="evalTab('disciplina')" id="etab-disciplina">🛡️ Disciplina</button>
       <button class="tab-btn" onclick="evalTab('misevals')" id="etab-misevals">Mis evaluaciones</button>
     </div>
     <div id="ep-registrar">
@@ -445,6 +470,9 @@ tr:last-child td{border-bottom:none}
         <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Mis evaluaciones registradas</h3>
         <table id="ev-recent"></table>
       </div>
+    </div>
+    <div id="ep-disciplina" style="display:none">
+      <div id="ep-disc-content"></div>
     </div>
   </div>
 </div>
@@ -500,9 +528,12 @@ let EVENTS=[
 const DIVNAMES={1:'División 1 — Registro',2:'División 2 — Pre-Camporee',3:'División 3 — Bíblicos',4:'División 4 — Deportivos',5:'División 5 — Técnicos'};
 const DIVKEYS=[1,2,3,4,5];
 
-function getMaxPts(){return EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);}
+function getMaxPts(){
+  const evMax=EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);
+  return evMax+(DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0);
+}
 
-let ST={scores:[],current:null,editIdx:null,editUserIdx:null,editUserType:null,unsubscribe:null};
+let ST={scores:[],faltas:[],current:null,editIdx:null,editUserIdx:null,editUserType:null,unsubscribe:null};
 let DB={
   clubs:[
     {id:10,name:'Neolaia',cat:'kids',pass:'neo#4821',historial:{}},
@@ -543,8 +574,20 @@ let DB={
   ],
   nextId:200,
   nextEventId:29,
-  campName:'Camporee de Conquistadores "Valientes" 2026'
+  campName:'Camporee de Conquistadores "Valientes" 2026',
+  disciplina:{puntosIniciales:1000,evalIds:[]}
 };
+
+function getDisciplinaTotal(clubId){
+  const faltas=ST.faltas?ST.faltas.filter(f=>f.clubId===clubId):[];
+  const restado=faltas.reduce((a,b)=>a+b.puntos,0);
+  return(DB.disciplina?DB.disciplina.puntosIniciales||0:0)-restado;
+}
+
+async function saveFaltasToFirebase(){
+  const{doc,setDoc}=window.dbFuncs;const db=window.DB_REF;
+  try{await setDoc(doc(db,'camporee','faltas'),{data:ST.faltas,updatedAt:Date.now()});}catch(e){console.error(e);}
+}
 
 function updateCampName(){
   const name=DB.campName||'Control de Puntaje';
@@ -563,8 +606,8 @@ function getStarInfo(pct){
 function posMedal(n){return n===1?'🥇':n===2?'🥈':n===3?'🥉':n+'°';}
 function getPosInfo(clubId){
   const club=DB.clubs.find(c=>c.id===clubId);
-  const allRanked=[...DB.clubs].map(c=>({id:c.id,total:clubTotal(c.id)})).sort((a,b)=>b.total-a.total);
-  const catRanked=DB.clubs.filter(c=>c.cat===club.cat).map(c=>({id:c.id,total:clubTotal(c.id)})).sort((a,b)=>b.total-a.total);
+  const allRanked=[...DB.clubs].map(c=>({id:c.id,total:clubTotalConDisciplina(c.id)})).sort((a,b)=>b.total-a.total);
+  const catRanked=DB.clubs.filter(c=>c.cat===club.cat).map(c=>({id:c.id,total:clubTotalConDisciplina(c.id)})).sort((a,b)=>b.total-a.total);
   return{posGeneral:allRanked.findIndex(c=>c.id===clubId)+1,posCat:catRanked.findIndex(c=>c.id===clubId)+1,totalClubs:DB.clubs.length,totalCat:catRanked.length};
 }
 function posCardColor(n){
@@ -575,6 +618,7 @@ function posCardColor(n){
 }
 function scoreBadge(s,m){const p=s/m;const c=p>=0.9?'s-gold':p>=0.7?'s-silver':p>=0.5?'s-bronze':'s-low';return`<span class="score-badge ${c}">${s}/${m}</span>`;}
 function clubTotal(cid){return ST.scores.filter(s=>s.clubId===cid).reduce((a,b)=>a+b.score,0);}
+function clubTotalConDisciplina(cid){return clubTotal(cid)+getDisciplinaTotal(cid);}
 function avCls(cat){return cat==='kids'?'av-k':cat==='junior'?'av-j':'av-s';}
 function catTag(cat){if(cat==='kids')return'<span class="tag tag-kids">Kids</span>';if(cat==='junior')return'<span class="tag tag-junior">Junior</span>';return'<span class="tag tag-senior">Senior</span>';}
 function catName(cat){return cat==='kids'?'Kids':cat==='junior'?'Junior':'Senior';}
@@ -595,15 +639,16 @@ async function saveDBToFirebase(){
 }
 
 function startRealtimeSync(){
-  const{doc,onSnapshot,collection}=window.dbFuncs;
+  const{doc,onSnapshot}=window.dbFuncs;
   const db=window.DB_REF;
   if(ST.unsubscribe)ST.unsubscribe();
-  ST.unsubscribe=onSnapshot(doc(db,'camporee','scores'),(snap)=>{
-    if(snap.exists()){
-      ST.scores=snap.data().data||[];
-      refreshCurrentView();
-    }
+  const unsubScores=onSnapshot(doc(db,'camporee','scores'),(snap)=>{
+    if(snap.exists()){ST.scores=snap.data().data||[];refreshCurrentView();}
   });
+  const unsubFaltas=onSnapshot(doc(db,'camporee','faltas'),(snap)=>{
+    if(snap.exists()){ST.faltas=snap.data().data||[];refreshCurrentView();}
+  });
+  ST.unsubscribe=()=>{unsubScores();unsubFaltas();};
 }
 
 function refreshCurrentView(){
@@ -697,7 +742,7 @@ function admTab(t){
 }
 
 function gestTab(t){
-  ['clubes','evaluadores','admins','eventos','historial','credenciales','nuevo'].forEach(x=>{
+  ['clubes','evaluadores','admins','eventos','disciplina','historial','credenciales','nuevo'].forEach(x=>{
     document.getElementById('gp-'+x).style.display=x===t?'block':'none';
     document.getElementById('gtab-'+x).classList.toggle('active',x===t);
   });
@@ -705,6 +750,7 @@ function gestTab(t){
   if(t==='evaluadores')renderGestionEvaluadores();
   if(t==='admins')renderGestionAdmins();
   if(t==='eventos')renderGestionEventos();
+  if(t==='disciplina')renderGestionDisciplina();
   if(t==='historial')renderGestionHistorial();
   if(t==='credenciales')renderGestionCreds();
 }
@@ -715,10 +761,12 @@ async function confirmarNuevoCampamento(){
   if(!nombre){msg.className='err';msg.style.display='block';msg.textContent='Escribe el nombre del nuevo campamento.';return;}
   if(!confirm(`¿Estás seguro? Se borrarán TODOS los puntajes, clubes, evaluadores y eventos. Esta acción no se puede deshacer.`))return;
   const admins=DB.admins;
-  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1,campName:nombre};
+  DB={clubs:[],evaluadores:[],admins,nextId:200,nextEventId:1,campName:nombre,disciplina:{puntosIniciales:1000,evalIds:[]}};
   EVENTS.splice(0,EVENTS.length);
   ST.scores=[];
+  ST.faltas=[];
   await saveScoresToFirebase();
+  await saveFaltasToFirebase();
   await saveDBToFirebase();
   updateCampName();
   msg.className='notif';msg.style.display='block';
@@ -743,7 +791,11 @@ function renderAdmMetrics(){
 
 function renderRankings(){
   ['kids','junior','senior'].forEach(cat=>{
-    const ranked=DB.clubs.filter(c=>c.cat===cat).map(c=>{const total=clubTotal(c.id);const pct=Math.round(total/getMaxPts()*100);return{...c,total,pct,star:getStarInfo(pct)};}).sort((a,b)=>b.total-a.total);
+    const ranked=DB.clubs.filter(c=>c.cat===cat).map(c=>{
+      const total=clubTotalConDisciplina(c.id);
+      const pct=Math.round(total/getMaxPts()*100);
+      return{...c,total,pct,star:getStarInfo(pct)};
+    }).sort((a,b)=>b.total-a.total);
     let html=`<thead><tr><th style="width:28px">#</th><th>Club</th><th>Pts</th><th>Nivel</th></tr></thead><tbody>`;
     ranked.forEach((c,i)=>{html+=`<tr><td style="font-size:16px">${posMedal(i+1)}</td><td style="font-size:12px">${c.name}</td><td>${scoreBadge(c.total,getMaxPts())}</td><td style="font-size:13px;color:${c.star.color}">${c.star.stars}</td></tr>`;});
     document.getElementById('rank-'+cat).innerHTML=html+'</tbody>';
@@ -1030,6 +1082,98 @@ function renderGestionAdmins(){
   html+='</div>';el.innerHTML=html;
 }
 
+function renderGestionDisciplina(){
+  const el=document.getElementById('gestion-disciplina');
+  const disc=DB.disciplina||{puntosIniciales:1000,evalIds:[]};
+  const evalAsignados=disc.evalIds.map(id=>{const e=DB.evaluadores.find(x=>x.id===id);return e?e.name:'?';}).join(', ');
+  const checkboxes=DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="disc-eval-${e.id}" value="${e.id}" ${disc.evalIds.includes(e.id)?'checked':''}/>${e.name}</label>`).join('');
+
+  let faltasHtml='';
+  if(ST.faltas&&ST.faltas.length){
+    const sorted=[...ST.faltas].sort((a,b)=>b.ts-a.ts);
+    faltasHtml=sorted.map(f=>{
+      const c=DB.clubs.find(x=>x.id===f.clubId);const eu=DB.evaluadores.find(x=>x.id===f.evalId)||DB.admins.find(x=>x.id===f.evalId);
+      const fecha=new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const idx=ST.faltas.indexOf(f);
+      return`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div><p style="font-size:13px;font-weight:600">${c?c.name:'?'}</p>
+          <p style="font-size:12px;color:#666">${f.nota}</p>
+          <p style="font-size:11px;color:#999">${fecha} · ${eu?eu.name:'?'}</p></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px;font-weight:700;color:#E24B4A">-${f.puntos} pts</span>
+            <button class="btn btn-sm btn-danger" onclick="eliminarFalta(${idx})">🗑️</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    faltasHtml='<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin faltas registradas.</p>';
+  }
+
+  el.innerHTML=`<div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">🛡️ Configuración de Disciplina</h3>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos iniciales de disciplina</label>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="disc-pts-input" value="${disc.puntosIniciales||1000}" min="0" style="max-width:150px">
+        <button class="btn btn-primary btn-sm" onclick="guardarConfigDisc()">Guardar</button>
+      </div>
+      <p style="font-size:11px;color:#666;margin-top:4px">Todos los clubes arrancan con estos puntos. Se suman al total general.</p>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">Evaluadores de disciplina</label>
+      <div class="checkbox-group">${checkboxes||'<p style="font-size:12px;color:#999">No hay evaluadores registrados.</p>'}</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="guardarEvalDisc()">Guardar evaluadores</button>
+    </div>
+    <div id="disc-config-msg" style="display:none"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:4px">Resumen por club</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:12px">Puntos iniciales: ${disc.puntosIniciales||1000}</p>
+    <table><thead><tr><th>Club</th><th>Faltas</th><th>Restado</th><th>Disponible</th></tr></thead><tbody>
+    ${DB.clubs.map(c=>{
+      const faltas=ST.faltas?ST.faltas.filter(f=>f.clubId===c.id):[];
+      const restado=faltas.reduce((a,b)=>a+b.puntos,0);
+      const disponible=getDisciplinaTotal(c.id);
+      return`<tr><td>${c.name}</td><td>${faltas.length}</td><td style="color:#E24B4A;font-weight:600">-${restado}</td><td style="color:#1D9E75;font-weight:600">${disponible}</td></tr>`;
+    }).join('')}
+    </tbody></table>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Historial de faltas</h3>
+    ${faltasHtml}
+  </div>`;
+}
+
+async function guardarConfigDisc(){
+  const pts=parseInt(document.getElementById('disc-pts-input').value)||0;
+  if(!DB.disciplina)DB.disciplina={puntosIniciales:pts,evalIds:[]};
+  else DB.disciplina.puntosIniciales=pts;
+  await saveDBToFirebase();
+  const msg=document.getElementById('disc-config-msg');
+  msg.className='notif';msg.style.display='block';msg.textContent=`✓ Puntos de disciplina actualizados a ${pts}.`;
+  setTimeout(()=>msg.style.display='none',2500);
+  renderGestionDisciplina();renderRankings();renderAdmMetrics();
+}
+
+async function guardarEvalDisc(){
+  const evalIds=Array.from(document.querySelectorAll('[id^="disc-eval-"]:checked')).map(x=>parseInt(x.value));
+  if(!DB.disciplina)DB.disciplina={puntosIniciales:1000,evalIds};
+  else DB.disciplina.evalIds=evalIds;
+  await saveDBToFirebase();
+  const msg=document.getElementById('disc-config-msg');
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Evaluadores de disciplina guardados.';
+  setTimeout(()=>msg.style.display='none',2500);
+}
+
+async function eliminarFalta(idx){
+  if(!confirm('¿Eliminar esta falta? La acción no se puede deshacer.'))return;
+  ST.faltas.splice(idx,1);
+  await saveFaltasToFirebase();
+  renderGestionDisciplina();renderRankings();
+}
+
 function renderGestionEventos(){
   const el=document.getElementById('gestion-eventos');
   const maxPts=getMaxPts();
@@ -1266,11 +1410,88 @@ async function saveUser(){
 }
 
 function evalTab(t){
-  ['registrar','misevals'].forEach(x=>{
+  ['registrar','disciplina','misevals'].forEach(x=>{
     document.getElementById('ep-'+x).style.display=x===t?'block':'none';
     document.getElementById('etab-'+x).classList.toggle('active',x===t);
   });
   if(t==='misevals')renderEvRecent();
+  if(t==='disciplina')renderDiscEvaluador();
+}
+
+function renderDiscEvaluador(){
+  const u=ST.current;
+  const esDisciplina=DB.disciplina&&DB.disciplina.evalIds&&DB.disciplina.evalIds.includes(u.id);
+  const el=document.getElementById('ep-disc-content');
+  if(!esDisciplina){
+    el.innerHTML=`<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">No tienes asignado el rol de disciplina.</p></div>`;
+    return;
+  }
+  const pts=DB.disciplina.puntosIniciales||0;
+  let html=`<div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#FCEBEB;border-radius:8px;border:1px solid #F7C1C1">
+      <span style="font-size:24px">🛡️</span>
+      <div><p style="font-size:13px;font-weight:700;color:#791F1F">Disciplina</p>
+      <p style="font-size:12px;color:#A32D2D">Puntos iniciales: ${pts} pts · Solo puedes descontar</p></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club</label>
+      <select id="disc-club" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit">
+        <option value="">Seleccionar club...</option>
+        ${DB.clubs.map(c=>`<option value="${c.id}">${c.name} (${catName(c.cat)}) — ${getDisciplinaTotal(c.id)} pts disponibles</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Puntos a descontar</label>
+      <input type="number" id="disc-puntos" min="1" placeholder="ej. 50" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Motivo de la falta <span style="color:#A32D2D;font-weight:700">* obligatorio</span></label>
+      <textarea id="disc-nota" rows="3" style="resize:none;width:100%;padding:9px 11px;border:1px solid #FAC775;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none;font-family:inherit" placeholder="Describa detalladamente la falta..."></textarea>
+    </div>
+    <div id="disc-msg" style="display:none"></div>
+    <button class="btn btn-sm" style="background:#E24B4A;color:#fff;border-color:#E24B4A;padding:8px 20px" onclick="registrarFaltaEval()">Registrar falta</button>
+  </div>
+  <div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Faltas registradas</h3>
+    <div id="disc-lista-eval"></div>
+  </div>`;
+  el.innerHTML=html;
+  renderDiscListaEval();
+}
+
+async function registrarFaltaEval(){
+  const cid=parseInt(document.getElementById('disc-club').value);
+  const pts=parseInt(document.getElementById('disc-puntos').value);
+  const nota=document.getElementById('disc-nota').value.trim();
+  const msg=document.getElementById('disc-msg');
+  if(!cid||isNaN(pts)||pts<=0){msg.className='err';msg.style.display='block';msg.textContent='Selecciona un club y puntos válidos.';return;}
+  if(!nota){msg.className='err';msg.style.display='block';msg.textContent='⚠️ El motivo de la falta es obligatorio.';return;}
+  const disponibles=getDisciplinaTotal(cid);
+  if(pts>disponibles){msg.className='err';msg.style.display='block';msg.textContent=`Máximo disponible: ${disponibles} pts.`;return;}
+  ST.faltas.push({clubId:cid,puntos:pts,nota,evalId:ST.current.id,ts:Date.now()});
+  await saveFaltasToFirebase();
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Falta registrada.';
+  document.getElementById('disc-puntos').value='';document.getElementById('disc-nota').value='';
+  renderDiscListaEval();
+  setTimeout(()=>msg.style.display='none',3000);
+}
+
+function renderDiscListaEval(){
+  const el=document.getElementById('disc-lista-eval');if(!el)return;
+  const mine=ST.faltas?ST.faltas.filter(f=>f.evalId===ST.current.id).sort((a,b)=>b.ts-a.ts):[];
+  if(!mine.length){el.innerHTML='<p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin faltas registradas.</p>';return;}
+  el.innerHTML=mine.map(f=>{
+    const c=DB.clubs.find(x=>x.id===f.clubId);if(!c)return'';
+    const fecha=new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <p style="font-size:13px;font-weight:600">${c.name}</p>
+        <span style="font-size:13px;font-weight:700;color:#E24B4A">-${f.puntos} pts</span>
+      </div>
+      <p style="font-size:12px;color:#666">${f.nota}</p>
+      <p style="font-size:11px;color:#999;margin-top:3px">${fecha}</p>
+    </div>`;
+  }).join('');
 }
 
 function renderEval(){
@@ -1383,16 +1604,48 @@ function renderClub(){
     </div>`;
   document.getElementById('club-metrics').innerHTML=`
     <div class="metric"><div class="metric-val">${ST.scores.filter(s=>s.clubId===club.id).length}</div><div class="metric-lbl">Eventos evaluados</div></div>
-    <div class="metric"><div class="metric-val">${total}</div><div class="metric-lbl">Puntos acumulados</div></div>
-    <div class="metric"><div class="metric-val">${pct}%</div><div class="metric-lbl">Del total (6,650)</div></div>`;
+    <div class="metric"><div class="metric-val">${clubTotalConDisciplina(club.id)}</div><div class="metric-lbl">Puntos totales</div></div>
+    <div class="metric"><div class="metric-val">${pct}%</div><div class="metric-lbl">Del total (${getMaxPts()})</div></div>`;
+
+  const discPts=getDisciplinaTotal(club.id);
+  const discInicial=DB.disciplina?DB.disciplina.puntosIniciales||0:0;
+  const discFaltas=ST.faltas?ST.faltas.filter(f=>f.clubId===club.id).sort((a,b)=>b.ts-a.ts):[];
+  const discRestado=discFaltas.reduce((a,b)=>a+b.puntos,0);
+  const discPct=discInicial>0?Math.round(discPts/discInicial*100):100;
+
+  const discSection=`<div class="card" style="border-color:${discRestado>0?'#F7C1C1':'#9FE1CB'};margin-bottom:1rem">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:24px">🛡️</span>
+      <div style="flex:1">
+        <p style="font-size:14px;font-weight:700">Disciplina</p>
+        <p style="font-size:12px;color:#666">Iniciaste con ${discInicial} pts · Restado: ${discRestado} pts</p>
+      </div>
+      <div style="text-align:right">
+        <p style="font-size:22px;font-weight:800;color:${discPts<discInicial?'#E24B4A':'#1D9E75'}">${discPts}</p>
+        <p style="font-size:11px;color:#666">pts disponibles</p>
+      </div>
+    </div>
+    <div class="progress-bar" style="height:8px;margin-bottom:${discFaltas.length?'12px':'0'}">
+      <div style="height:100%;border-radius:4px;background:${discPts<discInicial*0.5?'#E24B4A':discPts<discInicial*0.8?'#EF9F27':'#1D9E75'};width:${discPct}%;transition:width 0.4s"></div>
+    </div>
+    ${discFaltas.length?discFaltas.map(f=>`<div style="padding:8px 0;border-top:1px solid #f0f0ea">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <p style="font-size:12px;color:#666">${f.nota}</p>
+        <span style="font-size:12px;font-weight:700;color:#E24B4A;flex-shrink:0;margin-left:10px">-${f.puntos} pts</span>
+      </div>
+      <p style="font-size:11px;color:#bbb;margin-top:2px">${new Date(f.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</p>
+    </div>`).join(''):''}
+  </div>`;
+
+  const elSec=document.getElementById('club-events-by-section');
+  elSec.innerHTML=discSection;
   const clubEvts=EVENTS.filter(e=>!e.cat||e.cat===club.cat);
-  const el=document.getElementById('club-events-by-section');el.innerHTML='';
   DIVKEYS.forEach(div=>{
     const evts=clubEvts.filter(e=>e.div===div);if(!evts.length)return;
     const secTotal=evts.reduce((a,e)=>{const sc=ST.scores.find(s=>s.clubId===club.id&&s.eventId===e.id);return a+(sc?sc.score:0);},0);
     const secMax=evts.reduce((a,e)=>a+e.max,0);
     const evaluated=evts.filter(e=>ST.scores.find(s=>s.clubId===club.id&&s.eventId===e.id)).length;
-    el.innerHTML+=`<div class="card">
+    elSec.innerHTML+=`<div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
         <p style="font-size:13px;font-weight:700">${DIVNAMES[div]}</p>
         <div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:#666">${evaluated}/${evts.length} evaluados</span>${scoreBadge(secTotal,secMax)}</div>
@@ -1466,6 +1719,8 @@ window.addEventListener('firebase-ready', async()=>{
     if(evSnap.exists()&&evSnap.data().data.length)EVENTS.splice(0,EVENTS.length,...evSnap.data().data);
     const scSnap=await getDoc(doc(db,'camporee','scores'));
     if(scSnap.exists())ST.scores=scSnap.data().data||[];
+    const fSnap=await getDoc(doc(db,'camporee','faltas'));
+    if(fSnap.exists())ST.faltas=fSnap.data().data||[];
   }catch(e){console.log('Usando datos locales');}
   updateCampName();
   showScreen('sc-login');
