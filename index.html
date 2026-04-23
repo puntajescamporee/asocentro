@@ -2014,8 +2014,12 @@ function renderUniformesEval(){
 }
 
 function renderPlanillaUniforme(){
-  const clubId=parseInt(document.getElementById('unif-club').value);
-  if(!clubId){document.getElementById('planilla-unif-container').innerHTML='';return;}
+  const sel=document.getElementById('unif-club');
+  if(!sel)return;
+  const clubId=parseInt(sel.value);
+  const container=document.getElementById('planilla-unif-container');
+  if(!container)return;
+  if(!clubId){container.innerHTML='';return;}
   const club=DB.clubs.find(c=>c.id===clubId);
   const datos=DB.uniformes&&DB.uniformes[clubId]?DB.uniformes[clubId]:{miembros:0,noBautizados:0,directiva:0};
   let html=`<div class="card">
@@ -2140,7 +2144,7 @@ function renderPlanillaUniforme(){
     <button class="btn btn-primary" onclick="enviarUniformeParaAprobacion(${clubId},${totalGeneral},${maxGeneral})">✅ Enviar para aprobación</button>
   </div>`;
 
-  document.getElementById('planilla-unif-container').innerHTML=html;
+  container.innerHTML=html;
 }
 
 async function guardarCabecera(clubId){
