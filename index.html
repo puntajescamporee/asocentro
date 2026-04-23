@@ -2018,8 +2018,11 @@ function renderPlanillaUniforme(){
   if(!sel)return;
   const clubId=parseInt(sel.value);
   const container=document.getElementById('planilla-unif-container');
-  if(!container)return;
-  if(!clubId){container.innerHTML='';return;}
+  if(!container){alert('Error: contenedor no encontrado');return;}
+  if(!clubId){container.innerHTML='<div class="card"><p style="color:#999;text-align:center;padding:1rem">Seleccione un club para ver la planilla.</p></div>';return;}
+  const club=DB.clubs.find(c=>c.id===clubId);
+  if(!club){container.innerHTML='<div class="card"><p style="color:red">Error: club no encontrado</p></div>';return;}
+  try{
   const club=DB.clubs.find(c=>c.id===clubId);
   const datos=DB.uniformes&&DB.uniformes[clubId]?DB.uniformes[clubId]:{miembros:0,noBautizados:0,directiva:0};
   let html=`<div class="card">
@@ -2145,6 +2148,7 @@ function renderPlanillaUniforme(){
   </div>`;
 
   container.innerHTML=html;
+  }catch(e){container.innerHTML=`<div class="card"><p style="color:red;font-size:13px">Error: ${e.message}</p></div>`;}
 }
 
 async function guardarCabecera(clubId){
