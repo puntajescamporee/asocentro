@@ -1976,10 +1976,10 @@ function getMaxUniforme(tipo){
   return miembrosMax;
 }
 
-function calcItemTotal(val,miembros,fallas){
-  if(!miembros||miembros<=0)return val;
-  const descuento=(val/miembros)*fallas;
-  return Math.max(0,val-descuento);
+function calcItemTotal(val,miembros,aciertos){
+  if(!miembros||miembros<=0)return 0;
+  const total=(val/miembros)*aciertos;
+  return Math.min(val,total);
 }
 
 async function saveUniformesToFirebase(){
@@ -2042,9 +2042,9 @@ function renderPlanillaUniforme(){
       sec.subsecciones.forEach(ss=>{
         let ssTotal=0;let ssMax=0;let rowsHtml='';
         ss.items.forEach(item=>{
-          const fallas=datos[`m_${item.id}`]||0;
+          const aciertos=datos[`m_${item.id}`]||0;
           const miembros=datos.miembros||0;
-          const total=Math.round(calcItemTotal(item.val,miembros,fallas));
+          const total=Math.round(calcItemTotal(item.val,miembros,aciertos));
           ssTotal+=total;ssMax+=item.val;
           rowsHtml+=`<tr>
             <td style="padding:7px 12px;font-size:12px">${item.nombre}</td>
@@ -2060,7 +2060,7 @@ function renderPlanillaUniforme(){
             <p style="font-size:12px;font-weight:700;color:#444">${ssTotal}/${ssMax} pts</p>
           </div>
           <table style="width:100%;font-size:12px;border-collapse:collapse">
-            <thead><tr style="background:#fafaf8"><th style="padding:5px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+            <thead><tr style="background:#fafaf8"><th style="padding:5px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Aciertos</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
         </div>`;
@@ -2068,9 +2068,9 @@ function renderPlanillaUniforme(){
     } else {
       // Sección normal sin subsecciones
       sec.items.forEach(item=>{
-        const fallas=datos[`m_${item.id}`]||0;
+        const aciertos=datos[`m_${item.id}`]||0;
         const miembros=datos.miembros||0;
-        const total=Math.round(calcItemTotal(item.val,miembros,fallas));
+        const total=Math.round(calcItemTotal(item.val,miembros,aciertos));
         secTotal+=total;secMax+=item.val;
         secHtml+=`<tr>
           <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
@@ -2080,7 +2080,7 @@ function renderPlanillaUniforme(){
         </tr>`;
       });
       secHtml=`<table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Aciertos</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
         <tbody>${secHtml}</tbody>
       </table>`;
     }
@@ -2104,9 +2104,9 @@ function renderPlanillaUniforme(){
   let totalDir=0;let maxDir=0;
   let rowsExtra='';
   UNIF_DIRECTIVA_EXTRA.forEach(item=>{
-    const fallas=datos[`dx_${item.id}`]||0;
+    const aciertos=datos[`dx_${item.id}`]||0;
     const directiva=datos.directiva||0;
-    const total=Math.round(calcItemTotal(item.val,directiva,fallas));
+    const total=Math.round(calcItemTotal(item.val,directiva,aciertos));
     totalDir+=total;maxDir+=item.val;
     rowsExtra+=`<tr>
       <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
@@ -2117,7 +2117,7 @@ function renderPlanillaUniforme(){
   });
   html+=`<div style="border-top:1px solid #FFCC80">
     <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+      <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Aciertos</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
       <tbody>${rowsExtra}</tbody>
     </table>
   </div>`;
@@ -2380,13 +2380,13 @@ function descargarPlanillaUniforme(){
             let ssTotal=0,ssMax=0;
             ss.items.forEach(item=>{
               if(y>270){doc.addPage();y=18;}
-              const fallas=datos[`m_${item.id}`]||0;
-              const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
+              const aciertos=datos[`m_${item.id}`]||0;
+              const total=Math.round(calcItemTotal(item.val,cantidad,aciertos));
               ssTotal+=total;ssMax+=item.val;totalTipo+=total;maxTipo+=item.val;
               doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
               doc.text(item.nombre.substring(0,52),18,y);
               doc.text(String(item.val),130,y);
-              doc.text(String(fallas),155,y);
+              doc.text(String(aciertos),155,y);
               doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
               doc.text(String(total),175,y);y+=4;
             });
@@ -2397,13 +2397,13 @@ function descargarPlanillaUniforme(){
           let secTotal=0,secMax=0;
           sec.items.forEach(item=>{
             if(y>270){doc.addPage();y=18;}
-            const fallas=datos[`m_${item.id}`]||0;
-            const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
+            const aciertos=datos[`m_${item.id}`]||0;
+            const total=Math.round(calcItemTotal(item.val,cantidad,aciertos));
             secTotal+=total;secMax+=item.val;totalTipo+=total;maxTipo+=item.val;
             doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
             doc.text(item.nombre.substring(0,55),16,y);
             doc.text(String(item.val),130,y);
-            doc.text(String(fallas),155,y);
+            doc.text(String(aciertos),155,y);
             doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
             doc.text(String(total),175,y);y+=4;
           });
@@ -2415,12 +2415,12 @@ function descargarPlanillaUniforme(){
       // Directiva: solo los 8 ítems exclusivos
       UNIF_DIRECTIVA_EXTRA.forEach(item=>{
         if(y>270){doc.addPage();y=18;}
-        const fallas=datos[`dx_${item.id}`]||0;
-        const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
+        const aciertos=datos[`dx_${item.id}`]||0;
+        const total=Math.round(calcItemTotal(item.val,cantidad,aciertos));
         totalTipo+=total;maxTipo+=item.val;
         doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
         doc.text(item.nombre.substring(0,55),16,y);
-        doc.text(String(item.val),130,y);doc.text(String(fallas),155,y);
+        doc.text(String(item.val),130,y);doc.text(String(aciertos),155,y);
         doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
         doc.text(String(total),175,y);y+=4;
       });
