@@ -403,6 +403,8 @@ tr:last-child td{border-bottom:none}
         <button class="tab-btn" onclick="gestTab('divisiones')" id="gtab-divisiones">Divisiones</button>
         <button class="tab-btn" onclick="gestTab('disciplina')" id="gtab-disciplina">🛡️ Disciplina</button>
         <button class="tab-btn" onclick="gestTab('aprobadores')" id="gtab-aprobadores">✅ Aprobadores</button>
+        <button class="tab-btn" onclick="gestTab('verificadores')" id="gtab-verificadores">🔍 Verificadores</button>
+        <button class="tab-btn" onclick="gestTab('uniformes')" id="gtab-uniformes">👔 Uniformes</button>
         <button class="tab-btn" onclick="gestTab('certificado')" id="gtab-certificado">🏅 Certificado</button>
         <button class="tab-btn" onclick="gestTab('historial')" id="gtab-historial">Historial ★</button>
         <button class="tab-btn" onclick="gestTab('credenciales')" id="gtab-credenciales">Credenciales</button>
@@ -415,6 +417,8 @@ tr:last-child td{border-bottom:none}
       <div id="gp-divisiones" style="display:none"><div id="gestion-divisiones"></div></div>
       <div id="gp-disciplina" style="display:none"><div id="gestion-disciplina"></div></div>
       <div id="gp-aprobadores" style="display:none"><div id="gestion-aprobadores"></div></div>
+      <div id="gp-verificadores" style="display:none"><div id="gestion-verificadores"></div></div>
+      <div id="gp-uniformes" style="display:none"><div id="gestion-uniformes"></div></div>
       <div id="gp-certificado" style="display:none"><div id="gestion-certificado"></div></div>
       <div id="gp-historial" style="display:none"><div id="gestion-historial"></div></div>
       <div id="gp-credenciales" style="display:none"><div id="gestion-creds"></div></div>
@@ -477,9 +481,11 @@ tr:last-child td{border-bottom:none}
         <button class="btn btn-sm" onclick="logout()">Salir</button>
       </div>
     </div>
-    <div class="tab-row">
+    <div class="tab-row" id="eval-tabs">
       <button class="tab-btn active" onclick="evalTab('registrar')" id="etab-registrar">Registrar</button>
       <button class="tab-btn" onclick="evalTab('disciplina')" id="etab-disciplina">🛡️ Disciplina</button>
+      <button class="tab-btn" onclick="evalTab('uniformes')" id="etab-uniformes" style="display:none">👔 Uniformes</button>
+      <button class="tab-btn" onclick="evalTab('verificar')" id="etab-verificar" style="display:none">✅ Verificar</button>
       <button class="tab-btn" onclick="evalTab('misevals')" id="etab-misevals">Mis evaluaciones</button>
     </div>
     <div id="ep-registrar">
@@ -512,6 +518,12 @@ tr:last-child td{border-bottom:none}
     <div id="ep-disciplina" style="display:none">
       <div id="ep-disc-content"></div>
     </div>
+    <div id="ep-uniformes" style="display:none">
+      <div id="ep-unif-content"></div>
+    </div>
+    <div id="ep-verificar" style="display:none">
+      <div id="ep-verif-content"></div>
+    </div>
   </div>
 </div>
 
@@ -522,6 +534,7 @@ tr:last-child td{border-bottom:none}
       <div id="club-header-info"></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm btn-pdf" onclick="descargarCertificado()">🏅 Certificado</button>
+        <button class="btn btn-sm btn-pdf" onclick="descargarPlanillaUniforme()">👔 Planilla Uniforme</button>
         <span class="sync-indicator"><span class="sync-dot"></span>En vivo</span>
         <button class="btn btn-sm" onclick="logout()">Salir</button>
       </div>
@@ -630,14 +643,11 @@ let DB={
     5:'División 5 — Técnicos'
   },
   nextDivId:6,
-  certificado:{
-    logoBase64:'',
-    fecha:'',
-    lugar:'',
-    firmante:'Pr. Jorge García',
-    cargo:'Director Ministerio Juvenil'
-  },
-  aprobadores:[]
+  certificado:{logoBase64:'',fecha:'',lugar:'',firmante:'Pr. Jorge García',cargo:'Director Ministerio Juvenil'},
+  aprobadores:[],
+  verificadoresIds:[],
+  uniformeEvalIds:[],
+  uniformes:{}
 };
 
 function getDisciplinaTotal(clubId){
@@ -833,7 +843,7 @@ function admTab(t){
 }
 
 function gestTab(t){
-  ['clubes','evaluadores','admins','eventos','divisiones','disciplina','aprobadores','certificado','historial','credenciales','nuevo'].forEach(x=>{
+  ['clubes','evaluadores','admins','eventos','divisiones','disciplina','aprobadores','verificadores','uniformes','certificado','historial','credenciales','nuevo'].forEach(x=>{
     document.getElementById('gp-'+x).style.display=x===t?'block':'none';
     document.getElementById('gtab-'+x).classList.toggle('active',x===t);
   });
@@ -844,6 +854,8 @@ function gestTab(t){
   if(t==='divisiones')renderGestionDivisiones();
   if(t==='disciplina')renderGestionDisciplina();
   if(t==='aprobadores')renderGestionAprobadores();
+  if(t==='verificadores')renderGestionVerificadores();
+  if(t==='uniformes')renderGestionUniformes();
   if(t==='certificado')renderGestionCertificado();
   if(t==='historial')renderGestionHistorial();
   if(t==='credenciales')renderGestionCreds();
@@ -1612,12 +1624,16 @@ async function saveUser(){
 }
 
 function evalTab(t){
-  ['registrar','disciplina','misevals'].forEach(x=>{
-    document.getElementById('ep-'+x).style.display=x===t?'block':'none';
-    document.getElementById('etab-'+x).classList.toggle('active',x===t);
+  ['registrar','disciplina','uniformes','verificar','misevals'].forEach(x=>{
+    const el=document.getElementById('ep-'+x);
+    const btn=document.getElementById('etab-'+x);
+    if(el)el.style.display=x===t?'block':'none';
+    if(btn)btn.classList.toggle('active',x===t);
   });
   if(t==='misevals')renderEvRecent();
   if(t==='disciplina')renderDiscEvaluador();
+  if(t==='uniformes')renderUniformesEval();
+  if(t==='verificar')renderVerificarEval();
 }
 
 function renderDiscEvaluador(){
@@ -1697,7 +1713,9 @@ function renderDiscListaEval(){
 }
 
 function renderEval(){
-  const u=ST.current;document.getElementById('ev-name').textContent=u.name;
+  const u=ST.current;
+  document.getElementById('ev-name').textContent=u.name;
+  document.getElementById('eval-campname').textContent=DB.campName||'Control de Puntaje';
   const myEvs=EVENTS.filter(e=>e.evalIds.includes(u.id));
   document.getElementById('ev-events-info').innerHTML=myEvs.length
     ?myEvs.map(e=>`<span style="display:inline-block;background:#f5f5f0;border:1px solid #e5e5e0;border-radius:6px;padding:4px 10px;font-size:12px;margin:2px">${e.name}</span>`).join('')
@@ -1712,6 +1730,14 @@ function renderEval(){
     });
     es.innerHTML+=`<option value="${e.id}">${e.name} (${e.max} pts)</option>`;
   });
+  // Mostrar pestaña verificar si tiene permiso
+  const esVerif=(DB.verificadoresIds||[]).includes(u.id);
+  const btnVerif=document.getElementById('etab-verificar');
+  if(btnVerif)btnVerif.style.display=esVerif?'inline-block':'none';
+  // Mostrar pestaña uniformes si tiene permiso
+  const esUnif=(DB.uniformeEvalIds||[]).includes(u.id);
+  const btnUnif=document.getElementById('etab-uniformes');
+  if(btnUnif)btnUnif.style.display=esUnif?'inline-block':'none';
   evalTab('registrar');
 }
 function evUpdateMax(){
@@ -1870,6 +1896,468 @@ function renderClub(){
       }).join('')}
     </div>`;
   });
+}
+
+// ===== DATOS DE UNIFORMES =====
+const UNIF_SECCIONES=[
+  {id:'gen',nombre:'Aspectos Generales',items:[
+    {id:'g1',nombre:'Rostro limpio',val:15},
+    {id:'g2',nombre:'Cabello bien peinado',val:15},
+    {id:'g3',nombre:'Dientes limpios',val:15},
+    {id:'g4',nombre:'Manos limpias',val:15},
+    {id:'g5',nombre:'Uñas limpias',val:15},
+    {id:'g6',nombre:'Zapatos limpios',val:15},
+    {id:'g7',nombre:'Uniforme limpio',val:10},
+    {id:'g8',nombre:'Filosofía Adventista (cadenas, pulseras, piercing, anillos, etc.)',val:10},
+  ]},
+  {id:'unif',nombre:'Uniforme Conquistadores',items:[
+    {id:'u1',nombre:'Boina con C3',val:40},
+    {id:'u2',nombre:'Pañuelo amarillo G1 trenzado',val:20},
+    {id:'u3',nombre:'Tubo G1 (tela, metal, anillos)',val:20},
+    {id:'u4',nombre:'Pantalón caqui o falda gris en línea A',val:40},
+    {id:'u5',nombre:'Riata negra con C3',val:40},
+    {id:'u6',nombre:'Medias blancas 3½ (Damas)',val:20},
+    {id:'u7',nombre:'Medias negras (Hombres)',val:20},
+    {id:'u8',nombre:'Zapatos de vestir negros',val:40},
+  ]},
+  {id:'camisa',nombre:'Camisa',items:[
+    {id:'c1',nombre:'Galonera',val:40},
+    {id:'c2',nombre:'Uniformidad: mangas largas o cortas',val:40},
+    {id:'c3',nombre:'Nombre con RH (bolsillo derecho)',val:20},
+    {id:'c4',nombre:'Placa de Cargo (bolsillo derecho)',val:20},
+    {id:'c5',nombre:'Barra de buena conducta (bolsillo izquierdo)',val:15},
+    {id:'c6',nombre:'Clases avanzadas (bolsillo izquierdo)',val:15},
+    {id:'c7',nombre:'Cinta de Clase (bolsillo izquierdo)',val:20},
+    {id:'c8',nombre:'Botón de Bautismo (bolsillo izquierdo)',val:20},
+    {id:'c9',nombre:'Botón de Iniciación (bolsillo izquierdo)',val:20},
+    {id:'c10',nombre:'Botones clases progresivas (bolsillo izquierdo)',val:20},
+    {id:'c11',nombre:'Medallón de Plata (bolsillo izquierdo)',val:15},
+    {id:'c12',nombre:'Emblema Unión (manga izquierda)',val:20},
+    {id:'c13',nombre:'Emblema C2 (manga izquierda)',val:20},
+    {id:'c14',nombre:'Galonera de clases (manga izquierda)',val:20},
+    {id:'c15',nombre:'Media luna nombre club (manga derecha)',val:20},
+    {id:'c16',nombre:'Triángulo Conquistadores C1 (manga derecha)',val:20},
+    {id:'c17',nombre:'Bandera de Colombia (banda)',val:20},
+    {id:'c18',nombre:'Nombre con RH (banda)',val:20},
+    {id:'c19',nombre:'Especialidades (banda)',val:20},
+    {id:'c20',nombre:'Emblema C1 (banda)',val:20},
+  ]},
+];
+const UNIF_DIRECTIVA_EXTRA=[
+  {id:'d1',nombre:'Pañuelo amarillo G1 con clases trenzado',val:15},
+  {id:'d2',nombre:'Corbata y Corbatín G1',val:15},
+  {id:'d3',nombre:'Galón de liderazgo director',val:15},
+  {id:'d4',nombre:'Estrella de Guía Mayor',val:25},
+  {id:'d5',nombre:'Cordón de mando director',val:15},
+  {id:'d6',nombre:'Cinta de cargo',val:10},
+  {id:'d7',nombre:'Estrella de servicio',val:10},
+  {id:'d8',nombre:'Maestrías',val:25},
+];
+
+function getMaxUniforme(tipo){
+  const base=UNIF_SECCIONES.reduce((a,s)=>a+s.items.reduce((b,i)=>b+i.val,0),0);
+  if(tipo==='directiva')return base+UNIF_DIRECTIVA_EXTRA.reduce((a,i)=>a+i.val,0);
+  return base;
+}
+
+function calcItemTotal(val,miembros,fallas){
+  if(!miembros||miembros<=0)return val;
+  const descuento=(val/miembros)*fallas;
+  return Math.max(0,val-descuento);
+}
+
+async function saveUniformesToFirebase(){
+  const{doc,setDoc}=window.dbFuncs;const db=window.DB_REF;
+  try{await setDoc(doc(db,'camporee','uniformes'),{data:DB.uniformes||{},updatedAt:Date.now()});}catch(e){console.error(e);}
+}
+
+// ===== MÓDULO UNIFORMES EVALUADOR =====
+function renderUniformesEval(){
+  const el=document.getElementById('ep-unif-content');
+  const u=ST.current;
+  if(!(DB.uniformeEvalIds||[]).includes(u.id)){
+    el.innerHTML=`<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">No tienes asignado el módulo de uniformes.</p></div>`;
+    return;
+  }
+  let html=`<div class="card">
+    <div style="padding:12px;background:#E3F2FD;border-radius:8px;border:1px solid #90CAF9;margin-bottom:16px">
+      <p style="font-size:13px;font-weight:700;color:#0D47A1">👔 Inspección de Uniformes</p>
+      <p style="font-size:12px;color:#1565C0;margin-top:2px">Los cambios se guardan en tiempo real. Todos los evaluadores de uniforme ven la planilla simultáneamente.</p>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club a evaluar</label>
+      <select id="unif-club" onchange="renderPlanillaUniforme()" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;font-size:13px;font-family:inherit">
+        <option value="">Seleccionar club...</option>
+        ${DB.clubs.map(c=>`<option value="${c.id}">${c.name} (${catName(c.cat)})</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div id="planilla-unif-container"></div>`;
+  el.innerHTML=html;
+}
+
+function renderPlanillaUniforme(){
+  const clubId=parseInt(document.getElementById('unif-club').value);
+  if(!clubId){document.getElementById('planilla-unif-container').innerHTML='';return;}
+  const club=DB.clubs.find(c=>c.id===clubId);
+  const datos=DB.uniformes&&DB.uniformes[clubId]?DB.uniformes[clubId]:{miembros:0,noBautizados:0,directiva:0};
+  let html=`<div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:14px">📋 Planilla — ${club.name}</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px" class="grid3">
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">👥 Miembros presentes</label>
+      <input type="number" id="unif-miembros" min="0" placeholder="0" value="${datos.miembros||''}" onchange="guardarCabecera(${clubId})"></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">✝️ No bautizados</label>
+      <input type="number" id="unif-nobaut" min="0" placeholder="0" value="${datos.noBautizados||''}" onchange="guardarCabecera(${clubId})"></div>
+      <div><label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">👑 Directiva presente</label>
+      <input type="number" id="unif-directiva" min="0" placeholder="0" value="${datos.directiva||''}" onchange="guardarCabecera(${clubId})"></div>
+    </div>
+  </div>`;
+
+  // Secciones para MIEMBROS
+  html+=`<div style="margin-bottom:1rem;background:#E8F5E9;border:1px solid #A5D6A7;border-radius:10px;overflow:hidden">
+    <div style="padding:12px 16px;background:#C8E6C9"><p style="font-size:13px;font-weight:700;color:#1B5E20">👥 MIEMBROS</p></div>`;
+  let totalMiembros=0;let maxMiembros=0;
+  UNIF_SECCIONES.forEach(sec=>{
+    const dc=getDivColor(UNIF_SECCIONES.indexOf(sec)+1);
+    let secTotal=0;let secMax=0;
+    let rowsHtml='';
+    sec.items.forEach(item=>{
+      const fallas=datos[`m_${item.id}`]||0;
+      const miembros=datos.miembros||0;
+      const total=calcItemTotal(item.val,miembros,fallas);
+      secTotal+=total;secMax+=item.val;
+      rowsHtml+=`<tr>
+        <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
+        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
+        <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'m_${item.id}',this.value)"></td>
+        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}" id="unif-total-m_${item.id}_${clubId}">${total.toFixed(1)}</td>
+      </tr>`;
+    });
+    totalMiembros+=secTotal;maxMiembros+=secMax;
+    html+=`<div style="border-top:1px solid #A5D6A7">
+      <div style="padding:8px 12px;background:${dc.bg}"><p style="font-size:12px;font-weight:700;color:${dc.text}">${sec.nombre} — ${secTotal.toFixed(1)}/${secMax} pts</p></div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  });
+  html+=`<div style="padding:12px 16px;background:#A5D6A7;display:flex;justify-content:space-between;align-items:center">
+    <p style="font-size:13px;font-weight:700;color:#1B5E20">Total Miembros</p>
+    <p style="font-size:16px;font-weight:800;color:#1B5E20">${totalMiembros.toFixed(1)} / ${maxMiembros} pts</p>
+  </div></div>`;
+
+  // Secciones para DIRECTIVA
+  html+=`<div style="margin-bottom:1rem;background:#FFF3E0;border:1px solid #FFCC80;border-radius:10px;overflow:hidden">
+    <div style="padding:12px 16px;background:#FFE0B2"><p style="font-size:13px;font-weight:700;color:#E65100">👑 DIRECTIVA</p></div>`;
+  let totalDir=0;let maxDir=0;
+  UNIF_SECCIONES.forEach(sec=>{
+    const dc=getDivColor(UNIF_SECCIONES.indexOf(sec)+4);
+    let secTotal=0;let secMax=0;
+    let rowsHtml='';
+    sec.items.forEach(item=>{
+      const fallas=datos[`d_${item.id}`]||0;
+      const directiva=datos.directiva||0;
+      const total=calcItemTotal(item.val,directiva,fallas);
+      secTotal+=total;secMax+=item.val;
+      rowsHtml+=`<tr>
+        <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
+        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
+        <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'d_${item.id}',this.value)"></td>
+        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total.toFixed(1)}</td>
+      </tr>`;
+    });
+    totalDir+=secTotal;maxDir+=secMax;
+    html+=`<div style="border-top:1px solid #FFCC80">
+      <div style="padding:8px 12px;background:${dc.bg}"><p style="font-size:12px;font-weight:700;color:${dc.text}">${sec.nombre} — ${secTotal.toFixed(1)}/${secMax} pts</p></div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  });
+  // Ítems exclusivos directiva
+  let rowsExtra='';
+  UNIF_DIRECTIVA_EXTRA.forEach(item=>{
+    const fallas=datos[`dx_${item.id}`]||0;
+    const directiva=datos.directiva||0;
+    const total=calcItemTotal(item.val,directiva,fallas);
+    totalDir+=total;maxDir+=item.val;
+    rowsExtra+=`<tr>
+      <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
+      <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
+      <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'dx_${item.id}',this.value)"></td>
+      <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total.toFixed(1)}</td>
+    </tr>`;
+  });
+  html+=`<div style="border-top:1px solid #FFCC80">
+    <div style="padding:8px 12px;background:#FFF9C4"><p style="font-size:12px;font-weight:700;color:#F57F17">Ítems exclusivos Directiva</p></div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+      <tbody>${rowsExtra}</tbody>
+    </table>
+  </div>`;
+  html+=`<div style="padding:12px 16px;background:#FFCC80;display:flex;justify-content:space-between;align-items:center">
+    <p style="font-size:13px;font-weight:700;color:#E65100">Total Directiva</p>
+    <p style="font-size:16px;font-weight:800;color:#E65100">${totalDir.toFixed(1)} / ${maxDir} pts</p>
+  </div></div>`;
+
+  const totalGeneral=totalMiembros+totalDir;
+  const maxGeneral=maxMiembros+maxDir;
+  html+=`<div class="card" style="background:#E8F5E9;border-color:#1D9E75;margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <p style="font-size:15px;font-weight:700;color:#1B5E20">TOTAL UNIFORME</p>
+      <p style="font-size:20px;font-weight:800;color:#1D9E75">${totalGeneral.toFixed(1)} / ${maxGeneral} pts</p>
+    </div>
+    <div class="progress-bar" style="margin-top:8px;height:10px"><div style="height:100%;border-radius:4px;background:#1D9E75;width:${Math.round(totalGeneral/maxGeneral*100)}%"></div></div>
+  </div>
+  <div style="text-align:center;margin-bottom:1rem">
+    <button class="btn btn-primary" onclick="enviarUniformeParaAprobacion(${clubId},${totalGeneral.toFixed(1)},${maxGeneral})">✅ Enviar para aprobación</button>
+  </div>`;
+
+  document.getElementById('planilla-unif-container').innerHTML=html;
+}
+
+async function guardarCabecera(clubId){
+  if(!DB.uniformes)DB.uniformes={};
+  if(!DB.uniformes[clubId])DB.uniformes[clubId]={};
+  DB.uniformes[clubId].miembros=parseInt(document.getElementById('unif-miembros').value)||0;
+  DB.uniformes[clubId].noBautizados=parseInt(document.getElementById('unif-nobaut').value)||0;
+  DB.uniformes[clubId].directiva=parseInt(document.getElementById('unif-directiva').value)||0;
+  await saveUniformesToFirebase();
+  renderPlanillaUniforme();
+}
+
+async function guardarFallas(clubId,itemKey,val){
+  if(!DB.uniformes)DB.uniformes={};
+  if(!DB.uniformes[clubId])DB.uniformes[clubId]={};
+  DB.uniformes[clubId][itemKey]=parseInt(val)||0;
+  await saveUniformesToFirebase();
+}
+
+async function enviarUniformeParaAprobacion(clubId,total,max){
+  if(!confirm(`¿Enviar puntaje de uniforme ${total} pts para aprobación?`))return;
+  const pendiente={id:Date.now(),clubId,eventId:'uniforme',score:Math.round(total),max,note:'Inspección de uniforme',evalId:ST.current.id,ts:Date.now(),estado:'pendiente',tipo:'uniforme'};
+  ST.pendientes.push(pendiente);
+  await savePendientesToFirebase();
+  alert('✓ Enviado para aprobación.');
+}
+
+// ===== VERIFICACIÓN DENTRO DEL EVALUADOR =====
+function renderVerificarEval(){
+  const el=document.getElementById('ep-verif-content');
+  const pendientes=(ST.pendientes||[]).filter(p=>p.estado==='pendiente');
+  if(!pendientes.length){
+    el.innerHTML='<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">Sin puntajes pendientes. ¡Todo al día!</p></div>';
+    return;
+  }
+  let html=`<div class="card" style="margin-bottom:1rem;background:#FFF9C4;border-color:#FFF176">
+    <p style="font-size:13px;font-weight:700;color:#F57F17">⏳ ${pendientes.length} puntaje${pendientes.length>1?'s':''} pendiente${pendientes.length>1?'s':''}</p>
+  </div>`;
+  DIVKEYS.forEach(div=>{
+    const evtsDiv=EVENTS.filter(e=>e.div===div);
+    const pendDiv=pendientes.filter(p=>evtsDiv.find(e=>e.id===p.eventId));
+    if(!pendDiv.length)return;
+    const dc=getDivColor(div);
+    html+=`<div style="margin-bottom:1rem;border:1px solid ${dc.border};border-radius:12px;overflow:hidden">
+      <div style="padding:12px 16px;background:${dc.bg}">
+        <p style="font-size:13px;font-weight:700;color:${dc.text}">${DIVNAMES[div]||'División '+div} · ${pendDiv.length} pendiente${pendDiv.length>1?'s':''}</p>
+      </div>`;
+    pendDiv.forEach(p=>{
+      const club=DB.clubs.find(c=>c.id===p.clubId);
+      const ev=EVENTS.find(e=>e.id===p.eventId);
+      const eval_=DB.evaluadores.find(e=>e.id===p.evalId);
+      const fecha=new Date(p.ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const idx=ST.pendientes.indexOf(p);
+      html+=`<div style="padding:12px 16px;border-top:1px solid ${dc.border};background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+          <div style="flex:1">
+            <p style="font-size:13px;font-weight:700">${ev?ev.name:'?'}</p>
+            <p style="font-size:12px;color:#1D9E75;font-weight:600">${club?club.name:'?'} ${club?catTag(club.cat):''}</p>
+            <p style="font-size:12px;color:#666;margin-top:3px">${p.note||'Sin observación'}</p>
+            <p style="font-size:11px;color:#999;margin-top:2px">Evaluador: ${eval_?eval_.name:'?'} · ${fecha}</p>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            ${scoreBadge(p.score,ev?ev.max:100)}
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-primary" onclick="aprobarPuntajeVerificador(${idx})">✅ Aprobar</button>
+              <button class="btn btn-sm" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1" onclick="rechazarPuntajeVerificador(${idx})">❌ Rechazar</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  // Uniformes pendientes
+  const pendUnif=pendientes.filter(p=>p.tipo==='uniforme');
+  if(pendUnif.length){
+    html+=`<div style="margin-bottom:1rem;border:1px solid #90CAF9;border-radius:12px;overflow:hidden">
+      <div style="padding:12px 16px;background:#E3F2FD"><p style="font-size:13px;font-weight:700;color:#0D47A1">👔 Uniformes</p></div>`;
+    pendUnif.forEach(p=>{
+      const club=DB.clubs.find(c=>c.id===p.clubId);
+      const idx=ST.pendientes.indexOf(p);
+      html+=`<div style="padding:12px 16px;border-top:1px solid #90CAF9;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <p style="font-size:13px;font-weight:700">${club?club.name:'?'} — Uniforme</p>
+          <div style="display:flex;gap:6px;align-items:center">
+            ${scoreBadge(p.score,p.max||900)}
+            <button class="btn btn-sm btn-primary" onclick="aprobarPuntajeVerificador(${idx})">✅</button>
+            <button class="btn btn-sm" style="background:#FCEBEB;color:#791F1F;border-color:#F7C1C1" onclick="rechazarPuntajeVerificador(${idx})">❌</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  el.innerHTML=html;
+}
+
+async function aprobarPuntajeVerificador(idx){
+  const p=ST.pendientes[idx];if(!p)return;
+  ST.pendientes[idx].estado='aprobado';
+  ST.pendientes[idx].aprobadoAt=Date.now();
+  ST.pendientes[idx].aprobadoPor=ST.current.name;
+  ST.scores.push({clubId:p.clubId,eventId:p.eventId,score:p.score,note:p.note,evalId:p.evalId,ts:p.ts,tipo:p.tipo||null});
+  await saveScoresToFirebase();
+  await savePendientesToFirebase();
+  renderVerificarEval();
+}
+
+async function rechazarPuntajeVerificador(idx){
+  const motivo=prompt('Motivo del rechazo (obligatorio):');
+  if(!motivo)return;
+  ST.pendientes[idx].estado='rechazado';
+  ST.pendientes[idx].motivoRechazo=motivo;
+  ST.pendientes[idx].rechazadoAt=Date.now();
+  ST.pendientes[idx].rechazadoPor=ST.current.name;
+  await savePendientesToFirebase();
+  renderVerificarEval();
+}
+
+// ===== GESTIÓN VERIFICADORES =====
+function renderGestionVerificadores(){
+  const el=document.getElementById('gestion-verificadores');
+  const verifs=DB.verificadoresIds||[];
+  let html=`<div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">🔍 Verificadores de puntaje</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:14px">Los verificadores pueden aprobar o rechazar puntajes desde su pantalla de evaluador. Seleccione qué evaluadores tienen este permiso.</p>
+    <div class="checkbox-group" style="margin-bottom:14px">
+      ${DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="verif-${e.id}" value="${e.id}" ${verifs.includes(e.id)?'checked':''}/>${e.name}</label>`).join('')}
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">👔 Evaluadores de uniformes</label>
+      <p style="font-size:12px;color:#666;margin-bottom:8px">Seleccione quién puede acceder al módulo de inspección de uniformes.</p>
+      <div class="checkbox-group">
+        ${DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="unif-eval-${e.id}" value="${e.id}" ${(DB.uniformeEvalIds||[]).includes(e.id)?'checked':''}/>${e.name}</label>`).join('')}
+      </div>
+    </div>
+    <div id="verif-msg" style="display:none"></div>
+    <button class="btn btn-primary btn-sm" onclick="guardarVerificadores()">Guardar permisos</button>
+  </div>`;
+  el.innerHTML=html;
+}
+
+async function guardarVerificadores(){
+  DB.verificadoresIds=Array.from(document.querySelectorAll('[id^="verif-"]:checked')).map(x=>parseInt(x.value));
+  DB.uniformeEvalIds=Array.from(document.querySelectorAll('[id^="unif-eval-"]:checked')).map(x=>parseInt(x.value));
+  await saveDBToFirebase();
+  const msg=document.getElementById('verif-msg');
+  msg.className='notif';msg.style.display='block';msg.textContent='✓ Permisos guardados.';
+  setTimeout(()=>msg.style.display='none',2500);
+}
+
+// ===== GESTIÓN UNIFORMES (admin) =====
+function renderGestionUniformes(){
+  const el=document.getElementById('gestion-uniformes');
+  let html=`<div class="card">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">👔 Resumen de uniformes por club</h3>`;
+  if(!DB.clubs.length){html+='<p style="font-size:13px;color:#999">Sin clubes registrados.</p>';}
+  DB.clubs.forEach(c=>{
+    const datos=DB.uniformes&&DB.uniformes[c.id]?DB.uniformes[c.id]:{};
+    let totalM=0,maxM=0,totalD=0,maxD=0;
+    UNIF_SECCIONES.forEach(sec=>{sec.items.forEach(item=>{
+      totalM+=calcItemTotal(item.val,datos.miembros||0,datos[`m_${item.id}`]||0);maxM+=item.val;
+      totalD+=calcItemTotal(item.val,datos.directiva||0,datos[`d_${item.id}`]||0);maxD+=item.val;
+    });});
+    UNIF_DIRECTIVA_EXTRA.forEach(item=>{totalD+=calcItemTotal(item.val,datos.directiva||0,datos[`dx_${item.id}`]||0);maxD+=item.val;});
+    const total=totalM+totalD;const max=maxM+maxD;
+    const pct=max>0?Math.round(total/max*100):0;
+    html+=`<div style="padding:10px 0;border-bottom:1px solid #f0f0ea">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><p style="font-size:13px;font-weight:600">${c.name} ${catTag(c.cat)}</p>
+        <p style="font-size:11px;color:#666">Miembros: ${datos.miembros||0} · No bautizados: ${datos.noBautizados||0} · Directiva: ${datos.directiva||0}</p></div>
+        <div style="text-align:right">${scoreBadge(Math.round(total),max)}<p style="font-size:11px;color:#666;margin-top:2px">${pct}%</p></div>
+      </div>
+      <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  html+='</div>';el.innerHTML=html;
+}
+
+// ===== PLANILLA PDF UNIFORME PARA CLUB =====
+function descargarPlanillaUniforme(){
+  const{jsPDF}=window.jspdf;
+  const club=DB.clubs.find(c=>c.id===ST.current.clubId);
+  if(!club)return;
+  const datos=DB.uniformes&&DB.uniformes[club.id]?DB.uniformes[club.id]:{};
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210;let y=18;
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(29,158,117);
+  doc.text('INSPECCIÓN DE UNIFORME',W/2,y,{align:'center'});y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(40,40,40);
+  doc.text(club.name+' · '+( DB.campName||''),W/2,y,{align:'center'});y+=5;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text(`Miembros: ${datos.miembros||0} · No bautizados: ${datos.noBautizados||0} · Directiva: ${datos.directiva||0}`,W/2,y,{align:'center'});
+  y+=4;doc.setDrawColor(29,158,117);doc.line(14,y,196,y);y+=6;
+
+  ['m','d'].forEach(tipo=>{
+    const label=tipo==='m'?'MIEMBROS':'DIRECTIVA';
+    const cantidad=tipo==='m'?(datos.miembros||0):(datos.directiva||0);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(tipo==='m'?27:230,tipo==='m'?94:101,tipo==='m'?32:32);
+    doc.text(label,14,y);y+=5;
+    let totalTipo=0,maxTipo=0;
+    UNIF_SECCIONES.forEach(sec=>{
+      if(y>265){doc.addPage();y=18;}
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
+      doc.text(sec.nombre,14,y);y+=4;
+      doc.setFontSize(8);
+      let secTotal=0,secMax=0;
+      sec.items.forEach(item=>{
+        if(y>270){doc.addPage();y=18;}
+        const fallas=datos[`${tipo}_${item.id}`]||0;
+        const total=calcItemTotal(item.val,cantidad,fallas);
+        secTotal+=total;secMax+=item.val;totalTipo+=total;maxTipo+=item.val;
+        doc.setFont('helvetica','normal');doc.setTextColor(50,50,50);
+        doc.text(item.nombre.substring(0,55),16,y);
+        doc.text(String(item.val),130,y);
+        doc.text(String(fallas),155,y);
+        doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
+        doc.text(total.toFixed(1),175,y);y+=4;
+      });
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40,40,40);
+      doc.text(`Subtotal ${sec.nombre}: ${secTotal.toFixed(1)}/${secMax}`,14,y);y+=5;
+    });
+    if(tipo==='d'){
+      UNIF_DIRECTIVA_EXTRA.forEach(item=>{
+        if(y>270){doc.addPage();y=18;}
+        const fallas=datos[`dx_${item.id}`]||0;
+        const total=calcItemTotal(item.val,cantidad,fallas);
+        totalTipo+=total;maxTipo+=item.val;
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
+        doc.text(item.nombre.substring(0,55),16,y);
+        doc.text(String(item.val),130,y);doc.text(String(fallas),155,y);
+        doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
+        doc.text(total.toFixed(1),175,y);y+=4;
+      });
+    }
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(29,158,117);
+    doc.text(`TOTAL ${label}: ${totalTipo.toFixed(1)} / ${maxTipo} pts`,14,y);y+=7;
+  });
+
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,180,180);
+  doc.text('Puntajes ACO — Ministerio Juvenil Asocentro',14,290);
+  doc.save(`Uniforme_${club.name.replace(/\s+/g,'_')}.pdf`);
 }
 
 function descargarCredsPDF(){
@@ -2414,6 +2902,8 @@ window.addEventListener('firebase-ready', async()=>{
     if(fSnap.exists())ST.faltas=fSnap.data().data||[];
     const pSnap=await getDoc(doc(db,'camporee','pendientes'));
     if(pSnap.exists())ST.pendientes=pSnap.data().data||[];
+    const uSnap=await getDoc(doc(db,'camporee','uniformes'));
+    if(uSnap.exists())DB.uniformes=uSnap.data().data||{};
   }catch(e){console.log('Usando datos locales');}
   updateCampName();
   showScreen('sc-login');
