@@ -2157,6 +2157,32 @@ async function guardarFallas(clubId,itemKey,val){
   if(!DB.uniformes[clubId])DB.uniformes[clubId]={};
   DB.uniformes[clubId][itemKey]=parseInt(val)||0;
   await saveUniformesToFirebase();
+  // Recalcular en tiempo real
+  const datos=DB.uniformes[clubId];
+  const tipo=itemKey.startsWith('m_')?'m':itemKey.startsWith('d_')?'d':'dx';
+  const itemId=itemKey.replace(/^(m_|d_|dx_)/,'');
+  let item=null;
+  if(tipo==='m'||tipo==='d'){
+    UNIF_SECCIONES.forEach(sec=>{
+      const items=sec.subsecciones?sec.subsecciones.flatMap(ss=>ss.items):sec.items;
+      const found=items.find(i=>i.id===itemId);
+      if(found)item=found;
+    });
+  } else {
+    item=UNIF_DIRECTIVA_EXTRA.find(i=>i.id===itemId);
+  }
+  if(!item)return;
+  const cantidad=tipo==='dx'?(datos.directiva||0):(datos.miembros||0);
+  const total=Math.round(calcItemTotal(item.val,cantidad,parseInt(val)||0));
+  // Actualizar total del ítem en la UI
+  const tdId=`unif-t-${itemKey}-${clubId}`;
+  const td=document.getElementById(tdId);
+  if(td){
+    td.textContent=total;
+    td.style.color=total<item.val?'#E24B4A':'#1D9E75';
+  }
+  // Recalcular totales de sección y general
+  renderPlanillaUniforme();
 }
 
 async function enviarUniformeParaAprobacion(clubId,total,max){
