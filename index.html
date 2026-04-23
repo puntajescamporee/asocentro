@@ -1920,27 +1920,39 @@ const UNIF_SECCIONES=[
     {id:'u7',nombre:'Medias negras (Hombres)',val:20},
     {id:'u8',nombre:'Zapatos de vestir negros',val:40},
   ]},
-  {id:'camisa',nombre:'Camisa (415 pts)',items:[
-    {id:'c1',nombre:'Galonera',val:40},
-    {id:'c2',nombre:'Uniformidad: mangas largas o cortas',val:40},
-    {id:'c3',nombre:'Nombre con RH (bolsillo derecho)',val:20},
-    {id:'c4',nombre:'Placa de Cargo (bolsillo derecho)',val:20},
-    {id:'c5',nombre:'Barra de buena conducta (bolsillo izquierdo)',val:15},
-    {id:'c6',nombre:'Clases avanzadas (bolsillo izquierdo)',val:15},
-    {id:'c7',nombre:'Cinta de Clase (bolsillo izquierdo)',val:20},
-    {id:'c8',nombre:'Botón de Bautismo (bolsillo izquierdo)',val:20},
-    {id:'c9',nombre:'Botón de Iniciación (bolsillo izquierdo)',val:20},
-    {id:'c10',nombre:'Botones clases progresivas (bolsillo izquierdo)',val:20},
-    {id:'c11',nombre:'Medallón de Plata (bolsillo izquierdo)',val:15},
-    {id:'c12',nombre:'Emblema Unión (manga izquierda)',val:20},
-    {id:'c13',nombre:'Emblema C2 (manga izquierda)',val:20},
-    {id:'c14',nombre:'Galonera de clases (manga izquierda)',val:20},
-    {id:'c15',nombre:'Media luna nombre club (manga derecha)',val:20},
-    {id:'c16',nombre:'Triángulo Conquistadores C1 (manga derecha)',val:20},
-    {id:'c17',nombre:'Bandera de Colombia (banda)',val:20},
-    {id:'c18',nombre:'Nombre con RH (banda)',val:20},
-    {id:'c19',nombre:'Especialidades (banda)',val:20},
-    {id:'c20',nombre:'Emblema C1 (banda)',val:20},
+  {id:'camisa',nombre:'Camisa (415 pts)',subsecciones:[
+    {id:'sg',nombre:'Galonera',items:[
+      {id:'c1',nombre:'Galonera',val:30},
+      {id:'c2',nombre:'Uniformidad: mangas largas o cortas',val:40},
+    ]},
+    {id:'sd',nombre:'Bolsillo derecho',items:[
+      {id:'c3',nombre:'Nombre con RH',val:20},
+      {id:'c4',nombre:'Placa de Cargo',val:20},
+    ]},
+    {id:'si',nombre:'Bolsillo izquierdo',items:[
+      {id:'c5',nombre:'Barra de buena conducta',val:15},
+      {id:'c6',nombre:'Clases avanzadas',val:15},
+      {id:'c7',nombre:'Cinta de Clase',val:20},
+      {id:'c8',nombre:'Botón de Bautismo',val:20},
+      {id:'c9',nombre:'Botón de Iniciación',val:20},
+      {id:'c10',nombre:'Botones clases progresivas',val:20},
+      {id:'c11',nombre:'Medallón de Plata',val:15},
+    ]},
+    {id:'smi',nombre:'Manga izquierda',items:[
+      {id:'c12',nombre:'Emblema Unión',val:20},
+      {id:'c13',nombre:'Emblema C2',val:20},
+      {id:'c14',nombre:'Galonera de clases',val:20},
+    ]},
+    {id:'smd',nombre:'Manga derecha',items:[
+      {id:'c15',nombre:'Media luna nombre club',val:20},
+      {id:'c16',nombre:'Triángulo Conquistadores C1',val:20},
+    ]},
+    {id:'sb',nombre:'Banda',items:[
+      {id:'c17',nombre:'Bandera de Colombia',val:20},
+      {id:'c18',nombre:'Nombre con RH',val:20},
+      {id:'c19',nombre:'Especialidades',val:20},
+      {id:'c20',nombre:'Emblema C1',val:20},
+    ]},
   ]},
 ];
 const UNIF_DIRECTIVA_EXTRA=[
@@ -1955,7 +1967,10 @@ const UNIF_DIRECTIVA_EXTRA=[
 ];
 
 function getMaxUniforme(tipo){
-  const miembrosMax=UNIF_SECCIONES.reduce((a,s)=>a+s.items.reduce((b,i)=>b+i.val,0),0);
+  const miembrosMax=UNIF_SECCIONES.reduce((a,s)=>{
+    if(s.subsecciones)return a+s.subsecciones.reduce((b,ss)=>b+ss.items.reduce((c,i)=>c+i.val,0),0);
+    return a+s.items.reduce((b,i)=>b+i.val,0);
+  },0);
   const directivaMax=UNIF_DIRECTIVA_EXTRA.reduce((a,i)=>a+i.val,0);
   if(tipo==='directiva')return directivaMax;
   return miembrosMax;
@@ -2021,31 +2036,66 @@ function renderPlanillaUniforme(){
   UNIF_SECCIONES.forEach(sec=>{
     const dc=getDivColor(UNIF_SECCIONES.indexOf(sec)+1);
     let secTotal=0;let secMax=0;
-    let rowsHtml='';
-    sec.items.forEach(item=>{
-      const fallas=datos[`m_${item.id}`]||0;
-      const miembros=datos.miembros||0;
-      const total=calcItemTotal(item.val,miembros,fallas);
-      secTotal+=total;secMax+=item.val;
-      rowsHtml+=`<tr>
-        <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
-        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
-        <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'m_${item.id}',this.value)"></td>
-        <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}" id="unif-total-m_${item.id}_${clubId}">${total.toFixed(1)}</td>
-      </tr>`;
-    });
+    let secHtml='';
+    if(sec.subsecciones){
+      // Sección con subsecciones (ej. Camisa)
+      sec.subsecciones.forEach(ss=>{
+        let ssTotal=0;let ssMax=0;let rowsHtml='';
+        ss.items.forEach(item=>{
+          const fallas=datos[`m_${item.id}`]||0;
+          const miembros=datos.miembros||0;
+          const total=Math.round(calcItemTotal(item.val,miembros,fallas));
+          ssTotal+=total;ssMax+=item.val;
+          rowsHtml+=`<tr>
+            <td style="padding:7px 12px;font-size:12px">${item.nombre}</td>
+            <td style="padding:7px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
+            <td style="padding:7px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'m_${item.id}',this.value)"></td>
+            <td style="padding:7px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total}</td>
+          </tr>`;
+        });
+        secTotal+=ssTotal;secMax+=ssMax;
+        secHtml+=`<div style="border-top:1px solid #e0e0e0">
+          <div style="padding:7px 12px;background:#f5f5f0;display:flex;justify-content:space-between">
+            <p style="font-size:12px;font-weight:700;color:#444">📌 ${ss.nombre}</p>
+            <p style="font-size:12px;font-weight:700;color:#444">${ssTotal}/${ssMax} pts</p>
+          </div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="background:#fafaf8"><th style="padding:5px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:5px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>`;
+      });
+    } else {
+      // Sección normal sin subsecciones
+      sec.items.forEach(item=>{
+        const fallas=datos[`m_${item.id}`]||0;
+        const miembros=datos.miembros||0;
+        const total=Math.round(calcItemTotal(item.val,miembros,fallas));
+        secTotal+=total;secMax+=item.val;
+        secHtml+=`<tr>
+          <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
+          <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
+          <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'m_${item.id}',this.value)"></td>
+          <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total}</td>
+        </tr>`;
+      });
+      secHtml=`<table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
+        <tbody>${secHtml}</tbody>
+      </table>`;
+    }
     totalMiembros+=secTotal;maxMiembros+=secMax;
     html+=`<div style="border-top:1px solid #A5D6A7">
-      <div style="padding:8px 12px;background:${dc.bg}"><p style="font-size:12px;font-weight:700;color:${dc.text}">${sec.nombre} — ${secTotal.toFixed(1)}/${secMax} pts</p></div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr style="background:#f5f5f0"><th style="padding:6px 12px;text-align:left;font-size:11px;color:#666">Ítem</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Valor</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Fallas</th><th style="padding:6px 12px;text-align:center;font-size:11px;color:#666">Total</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
+      <div style="padding:8px 12px;background:${dc.bg};display:flex;justify-content:space-between;align-items:center">
+        <p style="font-size:12px;font-weight:700;color:${dc.text}">${sec.nombre}</p>
+        <p style="font-size:12px;font-weight:700;color:${dc.text}">${secTotal}/${secMax} pts</p>
+      </div>
+      ${secHtml}
     </div>`;
   });
   html+=`<div style="padding:12px 16px;background:#A5D6A7;display:flex;justify-content:space-between;align-items:center">
     <p style="font-size:13px;font-weight:700;color:#1B5E20">Total Miembros</p>
-    <p style="font-size:16px;font-weight:800;color:#1B5E20">${totalMiembros.toFixed(1)} / ${maxMiembros} pts</p>
+    <p style="font-size:16px;font-weight:800;color:#1B5E20">${totalMiembros} / ${maxMiembros} pts</p>
   </div></div>`;
 
   // Secciones para DIRECTIVA — solo 8 ítems exclusivos
@@ -2056,13 +2106,13 @@ function renderPlanillaUniforme(){
   UNIF_DIRECTIVA_EXTRA.forEach(item=>{
     const fallas=datos[`dx_${item.id}`]||0;
     const directiva=datos.directiva||0;
-    const total=calcItemTotal(item.val,directiva,fallas);
+    const total=Math.round(calcItemTotal(item.val,directiva,fallas));
     totalDir+=total;maxDir+=item.val;
     rowsExtra+=`<tr>
       <td style="padding:8px 12px;font-size:12px">${item.nombre}</td>
       <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:600">${item.val}</td>
       <td style="padding:8px 12px;text-align:center"><input type="number" min="0" value="${fallas}" style="width:60px;padding:4px 6px;border:1px solid #d0d0c8;border-radius:6px;text-align:center;font-size:12px" onchange="guardarFallas(${clubId},'dx_${item.id}',this.value)"></td>
-      <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total.toFixed(1)}</td>
+      <td style="padding:8px 12px;font-size:12px;text-align:center;font-weight:700;color:${total<item.val?'#E24B4A':'#1D9E75'}">${total}</td>
     </tr>`;
   });
   html+=`<div style="border-top:1px solid #FFCC80">
@@ -2073,7 +2123,7 @@ function renderPlanillaUniforme(){
   </div>`;
   html+=`<div style="padding:12px 16px;background:#FFCC80;display:flex;justify-content:space-between;align-items:center">
     <p style="font-size:13px;font-weight:700;color:#E65100">Total Directiva</p>
-    <p style="font-size:16px;font-weight:800;color:#E65100">${totalDir.toFixed(1)} / ${maxDir} pts</p>
+    <p style="font-size:16px;font-weight:800;color:#E65100">${totalDir} / ${maxDir} pts</p>
   </div></div>`;
 
   const totalGeneral=totalMiembros+totalDir;
@@ -2081,12 +2131,12 @@ function renderPlanillaUniforme(){
   html+=`<div class="card" style="background:#E8F5E9;border-color:#1D9E75;margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <p style="font-size:15px;font-weight:700;color:#1B5E20">TOTAL UNIFORME</p>
-      <p style="font-size:20px;font-weight:800;color:#1D9E75">${totalGeneral.toFixed(1)} / ${maxGeneral} pts</p>
+      <p style="font-size:20px;font-weight:800;color:#1D9E75">${totalGeneral} / ${maxGeneral} pts</p>
     </div>
     <div class="progress-bar" style="margin-top:8px;height:10px"><div style="height:100%;border-radius:4px;background:#1D9E75;width:${Math.round(totalGeneral/maxGeneral*100)}%"></div></div>
   </div>
   <div style="text-align:center;margin-bottom:1rem">
-    <button class="btn btn-primary" onclick="enviarUniformeParaAprobacion(${clubId},${totalGeneral.toFixed(1)},${maxGeneral})">✅ Enviar para aprobación</button>
+    <button class="btn btn-primary" onclick="enviarUniformeParaAprobacion(${clubId},${totalGeneral},${maxGeneral})">✅ Enviar para aprobación</button>
   </div>`;
 
   document.getElementById('planilla-unif-container').innerHTML=html;
@@ -2296,35 +2346,57 @@ function descargarPlanillaUniforme(){
         if(y>265){doc.addPage();y=18;}
         doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
         doc.text(sec.nombre,14,y);y+=4;
-        doc.setFontSize(8);
-        let secTotal=0,secMax=0;
-        sec.items.forEach(item=>{
-          if(y>270){doc.addPage();y=18;}
-          const fallas=datos[`m_${item.id}`]||0;
-          const total=calcItemTotal(item.val,cantidad,fallas);
-          secTotal+=total;secMax+=item.val;totalTipo+=total;maxTipo+=item.val;
-          doc.setFont('helvetica','normal');doc.setTextColor(50,50,50);
-          doc.text(item.nombre.substring(0,55),16,y);
-          doc.text(String(item.val),130,y);
-          doc.text(String(fallas),155,y);
-          doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
-          doc.text(total.toFixed(1),175,y);y+=4;
-        });
-        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40,40,40);
-        doc.text(`Subtotal ${sec.nombre}: ${secTotal.toFixed(1)}/${secMax}`,14,y);y+=5;
+        if(sec.subsecciones){
+          sec.subsecciones.forEach(ss=>{
+            if(y>265){doc.addPage();y=18;}
+            doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(100,100,100);
+            doc.text('  '+ss.nombre+':',14,y);y+=4;
+            let ssTotal=0,ssMax=0;
+            ss.items.forEach(item=>{
+              if(y>270){doc.addPage();y=18;}
+              const fallas=datos[`m_${item.id}`]||0;
+              const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
+              ssTotal+=total;ssMax+=item.val;totalTipo+=total;maxTipo+=item.val;
+              doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
+              doc.text(item.nombre.substring(0,52),18,y);
+              doc.text(String(item.val),130,y);
+              doc.text(String(fallas),155,y);
+              doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
+              doc.text(String(total),175,y);y+=4;
+            });
+            doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(80,80,80);
+            doc.text(`  Subtotal ${ss.nombre}: ${ssTotal}/${ssMax}`,14,y);y+=4;
+          });
+        } else {
+          let secTotal=0,secMax=0;
+          sec.items.forEach(item=>{
+            if(y>270){doc.addPage();y=18;}
+            const fallas=datos[`m_${item.id}`]||0;
+            const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
+            secTotal+=total;secMax+=item.val;totalTipo+=total;maxTipo+=item.val;
+            doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
+            doc.text(item.nombre.substring(0,55),16,y);
+            doc.text(String(item.val),130,y);
+            doc.text(String(fallas),155,y);
+            doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
+            doc.text(String(total),175,y);y+=4;
+          });
+          doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40,40,40);
+          doc.text(`Subtotal ${sec.nombre}: ${secTotal}/${secMax}`,14,y);y+=5;
+        }
       });
     } else {
       // Directiva: solo los 8 ítems exclusivos
       UNIF_DIRECTIVA_EXTRA.forEach(item=>{
         if(y>270){doc.addPage();y=18;}
         const fallas=datos[`dx_${item.id}`]||0;
-        const total=calcItemTotal(item.val,cantidad,fallas);
+        const total=Math.round(calcItemTotal(item.val,cantidad,fallas));
         totalTipo+=total;maxTipo+=item.val;
         doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(50,50,50);
         doc.text(item.nombre.substring(0,55),16,y);
         doc.text(String(item.val),130,y);doc.text(String(fallas),155,y);
         doc.setFont('helvetica','bold');doc.setTextColor(total<item.val?200:29,total<item.val?50:158,total<item.val?50:117);
-        doc.text(total.toFixed(1),175,y);y+=4;
+        doc.text(String(total),175,y);y+=4;
       });
     }
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(29,158,117);
