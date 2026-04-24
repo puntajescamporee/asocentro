@@ -397,7 +397,6 @@ tr:last-child td{border-bottom:none}
         <button class="tab-btn" onclick="gestTab('eventos')" id="gtab-eventos">Eventos</button>
         <button class="tab-btn" onclick="gestTab('divisiones')" id="gtab-divisiones">Divisiones</button>
         <button class="tab-btn" onclick="gestTab('disciplina')" id="gtab-disciplina">🛡️ Disciplina</button>
-        <button class="tab-btn" onclick="gestTab('aprobadores')" id="gtab-aprobadores">✅ Aprobadores</button>
         <button class="tab-btn" onclick="gestTab('verificadores')" id="gtab-verificadores">🔍 Verificadores</button>
         <button class="tab-btn" onclick="gestTab('uniformes')" id="gtab-uniformes">👔 Uniformes</button>
         <button class="tab-btn" onclick="gestTab('certificado')" id="gtab-certificado">🏅 Certificado</button>
@@ -411,7 +410,6 @@ tr:last-child td{border-bottom:none}
       <div id="gp-eventos" style="display:none"><div id="gestion-eventos"></div></div>
       <div id="gp-divisiones" style="display:none"><div id="gestion-divisiones"></div></div>
       <div id="gp-disciplina" style="display:none"><div id="gestion-disciplina"></div></div>
-      <div id="gp-aprobadores" style="display:none"><div id="gestion-aprobadores"></div></div>
       <div id="gp-verificadores" style="display:none"><div id="gestion-verificadores"></div></div>
       <div id="gp-uniformes" style="display:none"><div id="gestion-uniformes"></div></div>
       <div id="gp-certificado" style="display:none"><div id="gestion-certificado"></div></div>
@@ -782,7 +780,7 @@ function admTab(t){
 }
 
 function gestTab(t){
-  ['clubes','evaluadores','admins','eventos','divisiones','disciplina','aprobadores','verificadores','uniformes','certificado','historial','credenciales','nuevo'].forEach(x=>{
+  ['clubes','evaluadores','admins','eventos','divisiones','disciplina','verificadores','uniformes','certificado','historial','credenciales','nuevo'].forEach(x=>{
     document.getElementById('gp-'+x).style.display=x===t?'block':'none';
     document.getElementById('gtab-'+x).classList.toggle('active',x===t);
   });
@@ -792,7 +790,6 @@ function gestTab(t){
   if(t==='eventos')renderGestionEventos();
   if(t==='divisiones')renderGestionDivisiones();
   if(t==='disciplina')renderGestionDisciplina();
-  if(t==='aprobadores')renderGestionAprobadores();
   if(t==='verificadores')renderGestionVerificadores();
   if(t==='uniformes')renderGestionUniformes();
   if(t==='certificado')renderGestionCertificado();
