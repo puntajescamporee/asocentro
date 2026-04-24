@@ -705,7 +705,10 @@ function showScreen(id){
 
 function selectRol(rol){
   ST.selectedRol=rol;
-  ['admin','eval','aprobador','club'].forEach(r=>document.getElementById('rbtn-'+r).classList.toggle('active',r===rol));
+  ['admin','eval','club'].forEach(r=>{
+    const btn=document.getElementById('rbtn-'+r);
+    if(btn)btn.classList.toggle('active',r===rol);
+  });
   const sel=document.getElementById('login-user');
   sel.innerHTML='<option value="">Seleccionar...</option>';
   if(rol==='admin'){
@@ -714,9 +717,6 @@ function selectRol(rol){
   } else if(rol==='eval'){
     DB.evaluadores.forEach(u=>{const o=document.createElement('option');o.value='e_'+u.id;o.textContent=u.name;sel.appendChild(o);});
     document.getElementById('login-select-label').textContent='Evaluador';
-  } else if(rol==='aprobador'){
-    (DB.aprobadores||[]).forEach(u=>{const o=document.createElement('option');o.value='p_'+u.id;o.textContent=u.name;sel.appendChild(o);});
-    document.getElementById('login-select-label').textContent='Aprobador';
   } else {
     ['kids','junior','senior'].forEach(cat=>{
       const og=document.createElement('optgroup');og.label=catName(cat);
@@ -755,7 +755,7 @@ function logout(){
   ST.current=null;ST.selectedRol=null;
   document.getElementById('login-form').style.display='none';
   document.getElementById('login-pass').value='';
-  ['admin','eval','club'].forEach(r=>document.getElementById('rbtn-'+r).classList.remove('active'));
+  ['admin','eval','club'].forEach(r=>{const btn=document.getElementById('rbtn-'+r);if(btn)btn.classList.remove('active');});
   showScreen('sc-login');
 }
 
