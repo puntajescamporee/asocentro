@@ -1950,20 +1950,23 @@ async function saveUniformesToFirebase(){
 function renderUniformesEval(){
   const el=document.getElementById('ep-unif-content');
   const u=ST.current;
-  if(!(DB.uniformeEvalIds||[]).includes(u.id)){
+  const unifEvals=DB.uniformeEvals||{};
+  const catAsignada=unifEvals[u.id];
+  if(!(DB.uniformeEvalIds||[]).includes(u.id)||!catAsignada){
     el.innerHTML=`<div class="card"><p style="font-size:13px;color:#999;text-align:center;padding:1rem">No tienes asignado el módulo de uniformes.</p></div>`;
     return;
   }
+  const clubsFiltrados=DB.clubs.filter(c=>c.cat===catAsignada);
   let html=`<div class="card">
     <div style="padding:12px;background:#E3F2FD;border-radius:8px;border:1px solid #90CAF9;margin-bottom:16px">
-      <p style="font-size:13px;font-weight:700;color:#0D47A1">👔 Inspección de Uniformes</p>
+      <p style="font-size:13px;font-weight:700;color:#0D47A1">👔 Inspección de Uniformes — ${catName(catAsignada)}</p>
       <p style="font-size:12px;color:#1565C0;margin-top:2px">Los cambios se guardan en tiempo real. Todos los evaluadores de uniforme ven la planilla simultáneamente.</p>
     </div>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px">Club a evaluar</label>
       <select id="unif-club" oninput="renderPlanillaUniforme()" onchange="renderPlanillaUniforme()" style="width:100%;padding:9px 11px;border:1px solid #d0d0c8;border-radius:8px;font-size:13px;font-family:inherit">
         <option value="">Seleccionar club...</option>
-        ${DB.clubs.map(c=>`<option value="${c.id}">${c.name} (${catName(c.cat)})</option>`).join('')}
+        ${clubsFiltrados.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
       </select>
       <button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="renderPlanillaUniforme()">Ver planilla</button>
     </div>
@@ -2257,18 +2260,28 @@ async function rechazarPuntajeVerificador(idx){
 function renderGestionVerificadores(){
   const el=document.getElementById('gestion-verificadores');
   const verifs=DB.verificadoresIds||[];
+  const unifEvals=DB.uniformeEvals||{};
   let html=`<div class="card">
     <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">🔍 Verificadores de puntaje</h3>
-    <p style="font-size:12px;color:#666;margin-bottom:14px">Los verificadores pueden aprobar o rechazar puntajes desde su pantalla de evaluador. Seleccione qué evaluadores tienen este permiso.</p>
+    <p style="font-size:12px;color:#666;margin-bottom:14px">Los verificadores pueden aprobar o rechazar puntajes desde su pantalla de evaluador.</p>
     <div class="checkbox-group" style="margin-bottom:14px">
       ${DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="verif-${e.id}" value="${e.id}" ${verifs.includes(e.id)?'checked':''}/>${e.name}</label>`).join('')}
     </div>
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">👔 Evaluadores de uniformes</label>
-      <p style="font-size:12px;color:#666;margin-bottom:8px">Seleccione quién puede acceder al módulo de inspección de uniformes.</p>
-      <div class="checkbox-group">
-        ${DB.evaluadores.map(e=>`<label class="checkbox-item"><input type="checkbox" id="unif-eval-${e.id}" value="${e.id}" ${(DB.uniformeEvalIds||[]).includes(e.id)?'checked':''}/>${e.name}</label>`).join('')}
-      </div>
+      <label style="font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px">👔 Evaluadores de uniformes por categoría</label>
+      <p style="font-size:12px;color:#666;margin-bottom:10px">Asigne cada evaluador a una categoría — solo verá los clubes de esa categoría.</p>
+      ${DB.evaluadores.map(e=>{
+        const catActual=unifEvals[e.id]||'';
+        return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0ea;flex-wrap:wrap">
+          <p style="font-size:13px;flex:1;min-width:120px">${e.name}</p>
+          <select id="unif-cat-${e.id}" style="padding:6px 10px;border:1px solid #d0d0c8;border-radius:6px;font-size:12px;font-family:inherit">
+            <option value="">Sin acceso</option>
+            <option value="kids" ${catActual==='kids'?'selected':''}>Kids</option>
+            <option value="junior" ${catActual==='junior'?'selected':''}>Junior</option>
+            <option value="senior" ${catActual==='senior'?'selected':''}>Senior</option>
+          </select>
+        </div>`;
+      }).join('')}
     </div>
     <div id="verif-msg" style="display:none"></div>
     <button class="btn btn-primary btn-sm" onclick="guardarVerificadores()">Guardar permisos</button>
@@ -2278,7 +2291,16 @@ function renderGestionVerificadores(){
 
 async function guardarVerificadores(){
   DB.verificadoresIds=Array.from(document.querySelectorAll('[id^="verif-"]:checked')).map(x=>parseInt(x.value));
-  DB.uniformeEvalIds=Array.from(document.querySelectorAll('[id^="unif-eval-"]:checked')).map(x=>parseInt(x.value));
+  // Guardar evaluadores de uniforme con su categoría
+  DB.uniformeEvals={};
+  DB.uniformeEvalIds=[];
+  DB.evaluadores.forEach(e=>{
+    const sel=document.getElementById(`unif-cat-${e.id}`);
+    if(sel&&sel.value){
+      DB.uniformeEvals[e.id]=sel.value;
+      DB.uniformeEvalIds.push(e.id);
+    }
+  });
   await saveDBToFirebase();
   const msg=document.getElementById('verif-msg');
   msg.className='notif';msg.style.display='block';msg.textContent='✓ Permisos guardados.';
