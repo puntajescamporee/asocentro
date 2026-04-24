@@ -555,7 +555,9 @@ function syncDivisions(){
 
 function getMaxPts(){
   const evMax=EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);
-  return evMax+(DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0);
+  const discMax=DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0;
+  const unifMax=900;
+  return evMax+discMax+unifMax;
 }
 
 let ST={scores:[],faltas:[],pendientes:[],current:null,editIdx:null,editUserIdx:null,editUserType:null,unsubscribe:null};
@@ -1718,7 +1720,7 @@ function renderClub(){
       <div class="avatar ${avCls(club.cat)}">${initials(club.name)}</div>
       <div>${catTag(club.cat)}<h2 style="font-size:18px;font-weight:700;margin-top:4px">${club.name}</h2></div>
     </div>`;
-  const total=clubTotal(club.id);const pct=Math.round(total/getMaxPts()*100);
+  const total=clubTotalConDisciplina(club.id);const pct=Math.round(total/getMaxPts()*100);
   const star=getStarInfo(pct);const pos=getPosInfo(club.id);
   const c1=posCardColor(pos.posCat);const c2=posCardColor(pos.posGeneral);
   document.getElementById('club-pos-cards').innerHTML=`
