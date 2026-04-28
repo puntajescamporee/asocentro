@@ -2103,7 +2103,7 @@ function renderPlanillaUniforme(){
   </div>
   <div class="card" style="margin-bottom:1rem">
     <label style="font-size:13px;font-weight:700;color:#1a1a1a;display:block;margin-bottom:8px">📝 Observaciones generales</label>
-    <textarea id="unif-obs-${clubId}" placeholder="Anote aquí las observaciones generales de la inspección de uniforme..." rows="4" style="width:100%;padding:10px 12px;border:1px solid #d0d0c8;border-radius:8px;font-size:13px;resize:none;font-family:inherit" onchange="guardarFallas(${clubId},'obs_general',this.value)">${datos['obs_general']||''}</textarea>
+    <textarea id="unif-obs-${clubId}" placeholder="Anote aquí las observaciones generales de la inspección de uniforme..." rows="4" style="width:100%;padding:10px 12px;border:1px solid #d0d0c8;border-radius:8px;font-size:13px;resize:none;font-family:inherit" onblur="guardarObservacion(${clubId},this.value)" oninput="DB.uniformes&&DB.uniformes[${clubId}]?DB.uniformes[${clubId}]['obs_general']=this.value:null">${datos['obs_general']||''}</textarea>
   </div>
   <div style="text-align:center;margin-bottom:1rem">
     <button class="btn btn-primary" onclick="enviarUniformeParaAprobacion(${clubId},${totalGeneral},${maxGeneral})">✅ Enviar para aprobación</button>
@@ -2154,6 +2154,13 @@ async function guardarFallas(clubId,itemKey,val){
   }
   // Recalcular totales de sección y general
   renderPlanillaUniforme();
+}
+
+async function guardarObservacion(clubId, val){
+  if(!DB.uniformes)DB.uniformes={};
+  if(!DB.uniformes[clubId])DB.uniformes[clubId]={};
+  DB.uniformes[clubId]['obs_general']=val;
+  await saveUniformesToFirebase();
 }
 
 async function enviarUniformeParaAprobacion(clubId,total,max){
