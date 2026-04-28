@@ -675,6 +675,13 @@ function startRealtimeSync(){
   const{doc,onSnapshot}=window.dbFuncs;
   const db=window.DB_REF;
   if(ST.unsubscribe)ST.unsubscribe();
+  const unsubDB=onSnapshot(doc(db,'camporee','db'),(snap)=>{
+    if(snap.exists()){DB=snap.data().data;syncDivisions();refreshCurrentView();}
+  });
+  const unsubEvents=onSnapshot(doc(db,'camporee','events'),(snap)=>{
+    if(snap.exists()&&snap.data().data.length)EVENTS.splice(0,EVENTS.length,...snap.data().data);
+    refreshCurrentView();
+  });
   const unsubScores=onSnapshot(doc(db,'camporee','scores'),(snap)=>{
     if(snap.exists()){ST.scores=snap.data().data||[];refreshCurrentView();}
   });
@@ -684,10 +691,11 @@ function startRealtimeSync(){
   const unsubPendientes=onSnapshot(doc(db,'camporee','pendientes'),(snap)=>{
     if(snap.exists()){ST.pendientes=snap.data().data||[];refreshCurrentView();}
   });
-  ST.unsubscribe=()=>{unsubScores();unsubFaltas();unsubPendientes();};
+  ST.unsubscribe=()=>{unsubDB();unsubEvents();unsubScores();unsubFaltas();unsubPendientes();};
 }
 
 function refreshCurrentView(){
+  syncDivisions();
   if(!ST.current)return;
   if(ST.current.role==='admin'){
     renderRankings();renderAdmMetrics();
