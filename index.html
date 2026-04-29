@@ -869,9 +869,9 @@ async function guardarEstrellas(){
   await saveDBToFirebase();
   const msg=document.getElementById('est-msg');
   msg.className='notif';msg.style.display='block';
-  msg.textContent=`✓ Rangos guardados: 3★ desde ${s3}% · 4★ desde ${s4}% · 5★ desde ${s5}% · 6★ desde ${s6}%`;
+  msg.textContent=`✓ Guardados: 3★ desde ${s3}% · 4★ desde ${s4}% · 5★ desde ${s5}% · 6★ desde ${s6}%`;
   setTimeout(()=>msg.style.display='none',3000);
-  renderRankings();renderAdmMetrics();
+  renderRankings();renderAdmMetrics();renderEstrellasGrupos();
 }
 
 async function confirmarNuevoCampamento(){
@@ -1840,7 +1840,12 @@ function renderClub(){
       </div>
       <div class="progress-bar" style="margin-top:12px;height:10px"><div class="progress-fill" style="width:${pct}%;background:${star.barColor||star.color}"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:#bbb;margin-top:4px">
-        <span>0%</span><span>49%★★★</span><span>63%★★★★</span><span>77%★★★★★</span><span>91%★×6</span><span>100%</span>
+        <span>0%</span>
+        <span>${DB.estrellas?DB.estrellas.s3:49}%★★★</span>
+        <span>${DB.estrellas?DB.estrellas.s4:63}%★★★★</span>
+        <span>${DB.estrellas?DB.estrellas.s5:77}%★★★★★</span>
+        <span>${DB.estrellas?DB.estrellas.s6:91}%★×6</span>
+        <span>100%</span>
       </div>
       ${histHtml}
       <div style="margin-top:10px;text-align:right">
