@@ -676,11 +676,18 @@ function startRealtimeSync(){
   const db=window.DB_REF;
   if(ST.unsubscribe)ST.unsubscribe();
   const unsubDB=onSnapshot(doc(db,'camporee','db'),(snap)=>{
-    if(snap.exists()){DB=snap.data().data;syncDivisions();refreshCurrentView();}
+    if(snap.exists()&&snap.data().data){
+      DB=snap.data().data;
+      if(!DB.estrellas)DB.estrellas={s3:49,s4:63,s5:77,s6:91};
+      syncDivisions();
+      refreshCurrentView();
+    }
   });
   const unsubEvents=onSnapshot(doc(db,'camporee','events'),(snap)=>{
-    if(snap.exists()&&snap.data().data.length)EVENTS.splice(0,EVENTS.length,...snap.data().data);
-    refreshCurrentView();
+    if(snap.exists()&&snap.data().data&&snap.data().data.length){
+      EVENTS.splice(0,EVENTS.length,...snap.data().data);
+      refreshCurrentView();
+    }
   });
   const unsubScores=onSnapshot(doc(db,'camporee','scores'),(snap)=>{
     if(snap.exists()){ST.scores=snap.data().data||[];refreshCurrentView();}
@@ -3076,19 +3083,24 @@ window.addEventListener('firebase-ready', async()=>{
   const db=window.DB_REF;
   try{
     const dbSnap=await getDoc(doc(db,'camporee','db'));
-    if(dbSnap.exists())DB=dbSnap.data().data;
+    if(dbSnap.exists()&&dbSnap.data().data){
+      DB=dbSnap.data().data;
+      if(!DB.estrellas)DB.estrellas={s3:49,s4:63,s5:77,s6:91};
+    }
     syncDivisions();
     const evSnap=await getDoc(doc(db,'camporee','events'));
-    if(evSnap.exists()&&evSnap.data().data.length)EVENTS.splice(0,EVENTS.length,...evSnap.data().data);
+    if(evSnap.exists()&&evSnap.data().data&&evSnap.data().data.length){
+      EVENTS.splice(0,EVENTS.length,...evSnap.data().data);
+    }
     const scSnap=await getDoc(doc(db,'camporee','scores'));
-    if(scSnap.exists())ST.scores=scSnap.data().data||[];
+    if(scSnap.exists()&&scSnap.data().data)ST.scores=scSnap.data().data||[];
     const fSnap=await getDoc(doc(db,'camporee','faltas'));
-    if(fSnap.exists())ST.faltas=fSnap.data().data||[];
+    if(fSnap.exists()&&fSnap.data().data)ST.faltas=fSnap.data().data||[];
     const pSnap=await getDoc(doc(db,'camporee','pendientes'));
-    if(pSnap.exists())ST.pendientes=pSnap.data().data||[];
+    if(pSnap.exists()&&pSnap.data().data)ST.pendientes=pSnap.data().data||[];
     const uSnap=await getDoc(doc(db,'camporee','uniformes'));
-    if(uSnap.exists())DB.uniformes=uSnap.data().data||{};
-  }catch(e){console.log('Usando datos locales');}
+    if(uSnap.exists()&&uSnap.data().data)DB.uniformes=uSnap.data().data||{};
+  }catch(e){console.log('Usando datos locales',e);}
   updateCampName();
   showScreen('sc-login');
 });
