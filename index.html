@@ -556,7 +556,7 @@ function syncDivisions(){
 function getMaxPts(){
   const evMax=EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);
   const discMax=DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0;
-  return evMax+discMax;
+  return evMax+discMax+900;
 }
 
 let ST={scores:[],faltas:[],pendientes:[],current:null,editIdx:null,editUserIdx:null,editUserType:null,unsubscribe:null};
@@ -644,8 +644,7 @@ function clubTotalConDisciplina(cid){
 function getMaxPtsClub(cid){
   const evMax=EVENTS.filter(e=>!e.cat).reduce((a,b)=>a+b.max,0)+Math.max(...['kids','junior','senior'].map(cat=>EVENTS.filter(e=>e.cat===cat).reduce((a,b)=>a+b.max,0)),0);
   const discMax=DB&&DB.disciplina?DB.disciplina.puntosIniciales||0:0;
-  const unifScore=ST.scores.find(s=>s.clubId===cid&&s.eventId==='uniforme');
-  return evMax+discMax+(unifScore?900:0);
+  return evMax+discMax+900;
 }
 function avCls(cat){return cat==='kids'?'av-k':cat==='junior'?'av-j':'av-s';}
 function catTag(cat){if(cat==='kids')return'<span class="tag tag-kids">Kids</span>';if(cat==='junior')return'<span class="tag tag-junior">Junior</span>';return'<span class="tag tag-senior">Senior</span>';}
