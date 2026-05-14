@@ -1736,7 +1736,10 @@ function renderEval(){
   const u=ST.current;
   document.getElementById('ev-name').textContent=u.name;
   document.getElementById('eval-campname').textContent=DB.campName||'Control de Puntaje';
-  const myEvs=EVENTS.filter(e=>e.evalIds.includes(u.id));
+  // Buscar eventos asignados al evaluador desde su lista de evalIds
+  const evalUser=DB.evaluadores.find(e=>e.id===u.id);
+  const myEvIds=evalUser?evalUser.evalIds||[]:[];
+  const myEvs=EVENTS.filter(e=>myEvIds.includes(e.id));
   document.getElementById('ev-events-info').innerHTML=myEvs.length
     ?myEvs.map(e=>`<span style="display:inline-block;background:#f5f5f0;border:1px solid #e5e5e0;border-radius:6px;padding:4px 10px;font-size:12px;margin:2px">${e.name}</span>`).join('')
     :'<p style="font-size:13px;color:#999">Sin eventos asignados.</p>';
